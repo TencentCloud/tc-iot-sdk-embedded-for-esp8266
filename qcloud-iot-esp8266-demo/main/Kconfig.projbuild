@@ -1,0 +1,28 @@
+menu "QCloud IoT demo Configuration"
+
+config QCLOUD_IOT_EXPLORER_ENABLED
+    bool "To demo IoT Explorer (y) or IoT Hub (n)"
+    default y
+    help
+        To demo IoT Explorer (y) or IoT Hub (n)
+
+config DEMO_WIFI_BOARDING
+    bool "To use WiFi boarding (softAP) or not"
+    default y
+    help
+        To use WiFi boarding (softAP) or not
+
+config DEMO_WIFI_SSID
+    string "WiFi SSID"
+    default "YOUR_WIFI"
+    help
+        wifi ssid
+
+config DEMO_WIFI_PASSWORD
+    string "WiFi PASSWORD"
+    default "12345678"
+    help
+        wifi password       
+
+
+endmenu
