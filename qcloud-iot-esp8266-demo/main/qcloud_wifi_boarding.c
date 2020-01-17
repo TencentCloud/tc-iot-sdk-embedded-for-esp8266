@@ -1698,7 +1698,7 @@ void stop_smartconfig(void)
     set_wifi_led_state(WIFI_LED_OFF);
 }
 
-bool is_wifi_boarding_succesful(void)
+bool is_wifi_boarding_successful(void)
 {
     return (g_wifi_sta_connected && g_mqtt_connected);
 }

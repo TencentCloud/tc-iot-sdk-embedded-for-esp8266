@@ -1,0 +1,9 @@
+qcloud-iot-esp8266-demo/ESP8266_RTOS_SDK/
+qcloud-iot-esp8266-demo/build/
+./build/
+/build
+/output
+.DS_Store
+*.DS_Store
+/.vscode/settings.json
+/.vs

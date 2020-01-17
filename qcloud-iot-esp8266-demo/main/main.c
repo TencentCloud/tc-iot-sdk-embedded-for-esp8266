@@ -163,17 +163,17 @@ void qcloud_demo_task(void* parm)
     Log_i("qcloud_demo_task start");
 
 #if CONFIG_DEMO_WIFI_BOARDING
-    /* to use softAP boarding and device binding via Wechat mini program */
+    /* to use softAP WiFi boarding and device binding with Wechat mini program */
     int ret = start_softAP("ESP8266-SAP", "12345678", 0);
     if (ret) {
         Log_e("softAP start failed: %d", ret);
     } else {
-        /* 150 * 2000ms */
+        /* max waiting: 150 * 2000ms */
         int wait_cnt = 150;
         do {
             Log_d("waiting for boarding result...");
             HAL_SleepMs(2000);
-            wifi_connected = is_wifi_boarding_succesful();
+            wifi_connected = is_wifi_boarding_successful();
         } while (!wifi_connected && wait_cnt--);
     }
 #else
