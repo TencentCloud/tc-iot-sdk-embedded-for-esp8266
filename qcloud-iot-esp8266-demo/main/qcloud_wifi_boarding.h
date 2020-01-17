@@ -25,7 +25,7 @@ int start_smartconfig(void);
 
 void stop_smartconfig(void);
 
-bool is_wifi_boarding_succesful(void);
+bool is_wifi_boarding_successful(void);
 
 
 #endif //__QCLOUD_WIFI_BOARDING_H__
