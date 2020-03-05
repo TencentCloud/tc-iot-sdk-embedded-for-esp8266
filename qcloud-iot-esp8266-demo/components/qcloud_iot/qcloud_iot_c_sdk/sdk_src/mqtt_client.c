@@ -18,7 +18,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <ctype.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -242,16 +241,6 @@ bool IOT_MQTT_IsConnected(void *pClient)
     IOT_FUNC_EXIT_RC(get_client_conn_state(mqtt_client) == 1)
 }
 
-#if 0
-static inline  void _strlowr(char *str)
-{
-    while (*str != '\0') {
-        *str = tolower(*str);
-        str++;
-    }
-}
-#endif
-
 int qcloud_iot_mqtt_init(Qcloud_IoT_Client *pClient, MQTTInitParams *pParams)
 {
     IOT_FUNC_ENTRY;
@@ -265,8 +254,6 @@ int qcloud_iot_mqtt_init(Qcloud_IoT_Client *pClient, MQTTInitParams *pParams)
     if (size < 0 || size > HOST_STR_LENGTH - 1) {
         IOT_FUNC_EXIT_RC(QCLOUD_ERR_FAILURE);
     }
-
-    //_strlowr(s_qcloud_iot_host);
 
     int i = 0;
     for (i = 0; i < MAX_MESSAGE_HANDLERS; ++i) {

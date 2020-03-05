@@ -25,36 +25,36 @@ extern "C" {
 #include <stdarg.h>
 #include <stddef.h>
 
-#define NAME_MAX_LEN            (32)
-#define TYPE_MAX_LEN            (32)
-#define EVENT_TOKEN_MAX_LEN     (32)
-#define SIGLE_EVENT             (1)
-#define MUTLTI_EVENTS           (2)
+#define NAME_MAX_LEN			(32)
+#define TYPE_MAX_LEN			(32)
+#define EVENT_TOKEN_MAX_LEN		(32)
+#define SIGLE_EVENT			    (1) 
+#define MUTLTI_EVENTS		    (2)
 
 
-#define MAX_EVENT_WAIT_REPLY    (10)
-#define EVENT_MAX_DATA_NUM      (255)
+#define MAX_EVENT_WAIT_REPLY    (10) 
+#define EVENT_MAX_DATA_NUM		(255)
 
-#define POST_EVENT              "event_post"
-#define POST_EVENTS             "events_post"
-#define REPLY_EVENT             "event_reply"
+#define POST_EVENT				"event_post"
+#define POST_EVENTS				"events_post"
+#define REPLY_EVENT				"event_reply"
 
-
+		
 /**
  * @brief event's method, post and reply
  */
 typedef enum {
-    eEVENT_POST,
-    eEVENT_REPLY,
+    eEVENT_POST,    
+    eEVENT_REPLY, 
 } eEventMethod;
 
 
-typedef enum _eEventDealType_ {
-    eDEAL_REPLY_CB = 0,
-    eDEAL_EXPIRED = 1,
-} eEventDealType;
+typedef enum _eEventDealType_{
+	eDEAL_REPLY_CB = 0,
+	eDEAL_EXPIRED = 1,	
+}eEventDealType;
 
-typedef struct _sReply_ {
+typedef struct _sReply_{
     char       client_token[EVENT_TOKEN_MAX_LEN];               // clientToken for this event reply
     void       *user_context;                                   // user context
     Timer      timer;                                           // timer for request timeout

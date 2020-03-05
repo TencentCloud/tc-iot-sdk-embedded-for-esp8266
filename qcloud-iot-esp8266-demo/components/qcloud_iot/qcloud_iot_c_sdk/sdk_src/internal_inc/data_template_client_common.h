@@ -48,7 +48,7 @@ int template_common_remove_property(Qcloud_IoT_Template *ptemplate, DeviceProper
  * @param pShadow   handle to data_template client
  * @param pProperty device property
  * @return          0 = not existed
- */
+ */ 
 int template_common_check_property_existence(Qcloud_IoT_Template *ptemplate, DeviceProperty *pProperty);
 
 

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2020 Tencent Cloud. All rights reserved.
+ * Tencent is pleased to support the open source community by making IoT Hub available.
+ * Copyright (C) 2016 THL A29 Limited, a Tencent company. All rights reserved.
 
  * Licensed under the MIT License (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
@@ -12,23 +13,18 @@
  *
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <limits.h>
-#include <stdbool.h>
-#include <string.h>
-#include <time.h>
-
 #include "qcloud_iot_export.h"
 #include "qcloud_iot_import.h"
 #include "lite-utils.h"
 #include "utils_timer.h"
-#include "board_ops.h"
 
+/* anis color control codes */
+#define ANSI_COLOR_RED     "\x1b[31m"
+#define ANSI_COLOR_GREEN   "\x1b[32m"
+#define ANSI_COLOR_YELLOW  "\x1b[33m"
+#define ANSI_COLOR_BLUE    "\x1b[34m"
+#define ANSI_COLOR_RESET   "\x1b[0m"
 
-
-#define ESP8266_MQTT_TIMEOUT_VALUE_MS   (10*1000)
 
 static DeviceInfo sg_devInfo;
 static Timer sg_reportTimer;
@@ -198,8 +194,7 @@ static void eventPostCheck(void *client)
                             EventCont, pEventList, event_post_cb);
         if (rc < 0) {
             Log_e("event post failed: %d", rc);
-        } else
-            IOT_Event_clearFlag(client, FLAG_EVENT0);
+        }
     }
 }
 
@@ -250,14 +245,11 @@ static void OnActionCallback(void *pClient, const char *pClientToken, DeviceActi
     }
 
     //do blink
-    Log_i("do action: light blink");
-    for (i = 0; i < 6; i++) {
-        if (i % 2)
-            set_relay_led_state(RELAY_LED_ON);
-        else
-            set_relay_led_state(RELAY_LED_OFF);
-        HAL_SleepMs(period * 1000);
-    }
+    HAL_Printf( "%s[lighting blink][****]" ANSI_COLOR_RESET, ANSI_COLOR_RED);
+    HAL_SleepMs(period * 1000);
+    HAL_Printf( "\r%s[lighting blink][****]" ANSI_COLOR_RESET, ANSI_COLOR_GREEN);
+    HAL_SleepMs(period * 1000);
+    HAL_Printf( "\r%s[lighting blink][****]\n" ANSI_COLOR_RESET, ANSI_COLOR_RED);
 
     // construct output
     memset((char *)&replyPara, 0, sizeof(sReplyPara));
@@ -339,27 +331,10 @@ static void event_handler(void *pclient, void *handle_context, MQTTEventMsg *msg
     }
 }
 
-
-// Setup MQTT construct parameters
-static int _setup_template_init_params(TemplateInitParams* initParams)
+/*add user init code, like sensor init*/
+static void _usr_init(void)
 {
-    int ret;
-
-    ret = HAL_GetDevInfo((void *)&sg_devInfo);
-    if (QCLOUD_RET_SUCCESS != ret) {
-        return ret;
-    }
-
-    initParams->product_id = sg_devInfo.product_id;
-    initParams->device_name = sg_devInfo.device_name;
-    initParams->device_secret = sg_devInfo.device_secret;
-
-    initParams->command_timeout = ESP8266_MQTT_TIMEOUT_VALUE_MS;
-    initParams->keep_alive_interval_ms = QCLOUD_IOT_MQTT_KEEP_ALIVE_INTERNAL;
-    initParams->auto_connect_enable = 1;
-    initParams->event_handle.h_fp = event_handler;
-
-    return QCLOUD_RET_SUCCESS;
+    Log_d("add your init code here");
 }
 
 /*control msg from server will trigger this callback*/
@@ -434,35 +409,54 @@ static void  set_propery_state(void *pProperyData, eDataState state)
     }
 }
 
-/* demo for light logic conttrol */
+/* demo for light logic deal */
 static void deal_down_stream_user_logic(void *client, ProductDataDefine *light)
 {
     int i;
-    char brightness_bar[]  = "||||||||||||||||||||";
+    const char * ansi_color = NULL;
+    const char * ansi_color_name = NULL;
+    char brightness_bar[]      = "||||||||||||||||||||";
     int brightness_bar_len = strlen(brightness_bar);
 
+    /* light color */
+    switch (light->m_color) {
+        case eCOLOR_RED:
+            ansi_color = ANSI_COLOR_RED;
+            ansi_color_name = " RED ";
+            break;
+        case eCOLOR_GREEN:
+            ansi_color = ANSI_COLOR_GREEN;
+            ansi_color_name = "GREEN";
+            break;
+        case eCOLOR_BLUE:
+            ansi_color = ANSI_COLOR_BLUE;
+            ansi_color_name = " BLUE";
+            break;
+        default:
+            ansi_color = ANSI_COLOR_YELLOW;
+            ansi_color_name = "UNKNOWN";
+            break;
+    }
 
-    /* using console log to show brightness change */
+
+    /* light brightness bar */
     brightness_bar_len = (light->m_brightness >= 100) ? brightness_bar_len : (int)((light->m_brightness * brightness_bar_len) / 100);
     for (i = brightness_bar_len; i < strlen(brightness_bar); i++) {
         brightness_bar[i] = '-';
     }
 
     if (light->m_light_switch) {
-        HAL_Printf( "\n[  light is on  ]|[brightness:%s]|[%s]\n\n", brightness_bar, light->m_name);
+        /* light is on , show with the properties*/
+        HAL_Printf( "%s[  lighting  ]|[color:%s]|[brightness:%s]|[%s]\n" ANSI_COLOR_RESET, \
+                    ansi_color, ansi_color_name, brightness_bar, light->m_name);
     } else {
-        HAL_Printf( "\n[  light is off ]|[brightness:%s]|[%s]\n\n", brightness_bar, light->m_name);
+        /* light is off */
+        HAL_Printf( ANSI_COLOR_YELLOW"[  light is off ]|[color:%s]|[brightness:%s]|[%s]\n" ANSI_COLOR_RESET, \
+                    ansi_color_name, brightness_bar, light->m_name);
     }
 
-    /** hardware control **/
-    if (light->m_light_switch) {
-        set_relay_led_state(RELAY_LED_ON);
-    } else {
-        set_relay_led_state(RELAY_LED_OFF);
-    }
-
-#ifdef EVENT_POST_ENABLED
     if (eCHANGED == get_property_state(&light->m_light_switch)) {
+#ifdef EVENT_POST_ENABLED
         if (light->m_light_switch) {
             //memset(sg_message, 0, MAX_EVENT_STR_MESSAGE_LEN);
             //strcpy(sg_message,"light on");
@@ -481,12 +475,11 @@ static void deal_down_stream_user_logic(void *client, ProductDataDefine *light)
 
         //switch state changed set EVENT0 flag, the events will be posted by eventPostCheck
         IOT_Event_setFlag(client, FLAG_EVENT0);
-    }
+#else
+        Log_d("light switch state changed");
 #endif
-
+    }
 }
-
-
 
 /*example for cycle report, you can delete this for your needs*/
 static void cycle_report(Timer *reportTimer)
@@ -495,24 +488,11 @@ static void cycle_report(Timer *reportTimer)
 
     if (expired(reportTimer)) {
         for (i = 0; i < TOTAL_PROPERTY_COUNT; i++) {
-            DeviceProperty *pReportData = &(sg_DataTemplate[i].data_property);
-            /* simulate brightness changes */
-            if (0 == strcmp(pReportData->key, "brightness")) {
-                int *brightness = (int *)pReportData->data;
-                *brightness += 5;
-                if (*brightness > 100)
-                    *brightness = 0;
-
-                set_propery_state(pReportData->data, eCHANGED);
-            } else {
-                set_propery_state(&(sg_DataTemplate[i].data_property.data), eCHANGED);
-            }
-
-            countdown_ms(reportTimer, 10000);
+            set_propery_state(sg_DataTemplate[i].data_property.data, eCHANGED);
+            countdown_ms(reportTimer, 5000);
         }
     }
 }
-
 
 /*get local property data, like sensor data*/
 static void _refresh_local_property(void)
@@ -521,13 +501,9 @@ static void _refresh_local_property(void)
     cycle_report(&sg_reportTimer);
 }
 
-/* demo for up-stream code */
-static int deal_up_stream_user_logic(DeviceProperty *pReportDataList[], int *pCount)
+static int find_wait_report_property(DeviceProperty *pReportDataList[])
 {
     int i, j;
-
-    //refresh local property
-    _refresh_local_property();
 
     for (i = 0, j = 0; i < TOTAL_PROPERTY_COUNT; i++) {
         if (eCHANGED == sg_DataTemplate[i].state) {
@@ -535,7 +511,18 @@ static int deal_up_stream_user_logic(DeviceProperty *pReportDataList[], int *pCo
             sg_DataTemplate[i].state = eNOCHANGE;
         }
     }
-    *pCount = j;
+
+    return j;
+}
+
+/* demo for up-stream code */
+static int deal_up_stream_user_logic(DeviceProperty *pReportDataList[], int *pCount)
+{
+    //refresh local property
+    _refresh_local_property();
+
+    /*find propery need report*/
+    *pCount = find_wait_report_property(pReportDataList);
 
     return (*pCount > 0) ? QCLOUD_RET_SUCCESS : QCLOUD_ERR_FAILURE;
 }
@@ -544,47 +531,54 @@ static int deal_up_stream_user_logic(DeviceProperty *pReportDataList[], int *pCo
 static int _get_sys_info(void *handle, char *pJsonDoc, size_t sizeOfBuffer)
 {
     /*platform info has at least one of module_hardinfo/module_softinfo/fw_ver property*/
-    DeviceProperty platform_info[] = {
+    DeviceProperty plat_info[] = {
         {.key = "module_hardinfo", .type = TYPE_TEMPLATE_STRING, .data = "ESP8266"},
         {.key = "module_softinfo", .type = TYPE_TEMPLATE_STRING, .data = "V1.0"},
         {.key = "fw_ver",          .type = TYPE_TEMPLATE_STRING, .data = QCLOUD_IOT_DEVICE_SDK_VERSION},
         {.key = "imei",            .type = TYPE_TEMPLATE_STRING, .data = "11-22-33-44"},
         {.key = "lat",             .type = TYPE_TEMPLATE_STRING, .data = "22.546015"},
         {.key = "lon",             .type = TYPE_TEMPLATE_STRING, .data = "113.941125"},
-        {.key = NULL, .data = NULL}  //end
+        {NULL, NULL, 0}  //end
     };
 
     /*self define info*/
     DeviceProperty self_info[] = {
-        {.key = "append_info", .type = TYPE_TEMPLATE_STRING, .data = "ESP8266 test board demo"},
-        {.key = NULL, .data = NULL}  //end
+        {.key = "append_info", .type = TYPE_TEMPLATE_STRING, .data = "your self define info"},
+        {NULL, NULL, 0}  //end
     };
-    return IOT_Template_JSON_ConstructSysInfo(handle, pJsonDoc, sizeOfBuffer, platform_info, self_info);
+
+    return IOT_Template_JSON_ConstructSysInfo(handle, pJsonDoc, sizeOfBuffer, plat_info, self_info);
 }
 
 
-int qcloud_iot_explorer_demo(void)
+void* sub_dev1_thread(void *ptr, char *product_id, char *device_name)
 {
+
     DeviceProperty *pReportDataList[TOTAL_PROPERTY_COUNT];
     sReplyPara replyPara;
-    int ReportCount;
+    int ReportCont;
     int rc;
+    void *pGateWayClient = ptr;
+
+    Log_d("sub_dev1_thread ...");
 
     //init connection
     TemplateInitParams init_params = DEFAULT_TEMPLATE_INIT_PARAMS;
-    rc = _setup_template_init_params(&init_params);
-    if (rc != QCLOUD_RET_SUCCESS) {
-        Log_e("init params err,rc=%d", rc);
-        return rc;
-    }
+    init_params.product_id = product_id;
+    init_params.device_name = device_name;
+    init_params.event_handle.h_fp = event_handler;
 
-    void *client = IOT_Template_Construct(&init_params);
+
+    void *client = IOT_Template_Construct(&init_params, IOT_Gateway_Get_MQTT_Client(pGateWayClient));
     if (client != NULL) {
         Log_i("Cloud Device Construct Success");
     } else {
         Log_e("Cloud Device Construct Failed");
-        return QCLOUD_ERR_FAILURE;
+        return NULL;
     }
+
+    //usr init
+    _usr_init();
 
     //init data template
     _init_data_template();
@@ -595,7 +589,7 @@ int qcloud_iot_explorer_demo(void)
         Log_i("Register data template propertys Success");
     } else {
         Log_e("Register data template propertys Failed: %d", rc);
-        return rc;
+        return NULL;
     }
 
     //register data template actions here
@@ -605,47 +599,40 @@ int qcloud_iot_explorer_demo(void)
         Log_i("Register data template actions Success");
     } else {
         Log_e("Register data template actions Failed: %d", rc);
-        return rc;
+        return NULL;
     }
 #endif
 
+    HAL_SleepMs(1000); //wait subcrible ack
     //report device info, then you can manager your product by these info, like position
     rc = _get_sys_info(client, sg_data_report_buffer, sg_data_report_buffersize);
     if (QCLOUD_RET_SUCCESS == rc) {
-        rc = IOT_Template_Report_SysInfo_Sync(client, sg_data_report_buffer, sg_data_report_buffersize, ESP8266_MQTT_TIMEOUT_VALUE_MS);
+        rc = IOT_Template_Report_SysInfo_Sync(client, sg_data_report_buffer, sg_data_report_buffersize, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
         if (rc != QCLOUD_RET_SUCCESS) {
             Log_e("Report system info fail, err: %d", rc);
-            //return rc;
+            return NULL;
         }
     } else {
         Log_e("Get system info fail, err: %d", rc);
     }
 
-    //sync the property value during offline
-    rc = IOT_Template_GetStatus_sync(client, ESP8266_MQTT_TIMEOUT_VALUE_MS);
+    //get the property changed during offline
+    rc = IOT_Template_GetStatus_sync(client, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
     if (rc != QCLOUD_RET_SUCCESS) {
         Log_e("Get data status fail, err: %d", rc);
-        //return rc;
+        return NULL;
     } else {
         Log_d("Get data status success");
     }
-    // update local property status
-    deal_down_stream_user_logic(client, &sg_ProductData);
 
     //init a timer for cycle report, you could delete it or not for your needs
     InitTimer(&sg_reportTimer);
-    countdown_ms(&sg_reportTimer, 10000);
 
-    while (IOT_Template_IsConnected(client) || rc == QCLOUD_ERR_MQTT_ATTEMPTING_RECONNECT
-           || rc == QCLOUD_RET_MQTT_RECONNECTED || QCLOUD_RET_SUCCESS == rc) {
+    while (IOT_Template_IsConnected(client) || QCLOUD_RET_SUCCESS == rc) {
 
-        rc = IOT_Template_Yield(client, 200);
-        if (rc == QCLOUD_ERR_MQTT_ATTEMPTING_RECONNECT) {
-            HAL_SleepMs(1000);
-            continue;
-        } else if (rc != QCLOUD_RET_SUCCESS) {
-            Log_e("Exit loop due to error: %d", rc);
-            break;
+        rc = IOT_Template_Yield_Without_MQTT_Yield(client, 200);
+        if (QCLOUD_RET_SUCCESS != rc) {
+            Log_d("Template Yield without mqtt err, rc:%d", rc);
         }
 
         /* handle control msg from server */
@@ -668,20 +655,20 @@ int qcloud_iot_explorer_demo(void)
 
         /*report msg to server*/
         /*report the lastest properties's status*/
-        if (QCLOUD_RET_SUCCESS == deal_up_stream_user_logic(pReportDataList, &ReportCount)) {
+        if (QCLOUD_RET_SUCCESS == deal_up_stream_user_logic(pReportDataList, &ReportCont)) {
 
-            rc = IOT_Template_JSON_ConstructReportArray(client, sg_data_report_buffer, sg_data_report_buffersize, ReportCount, pReportDataList);
+            rc = IOT_Template_JSON_ConstructReportArray(client, sg_data_report_buffer, sg_data_report_buffersize, ReportCont, pReportDataList);
             if (rc == QCLOUD_RET_SUCCESS) {
                 rc = IOT_Template_Report(client, sg_data_report_buffer, sg_data_report_buffersize,
                                          OnReportReplyCallback, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
                 if (rc == QCLOUD_RET_SUCCESS) {
 
-                    Log_i("data template report success");
+                    Log_i("data template reporte success");
                 } else {
-                    Log_e("data template report failed, err: %d", rc);
+                    Log_e("data template reporte failed, err: %d", rc);
                 }
             } else {
-                Log_e("construct report data failed, err: %d", rc);
+                Log_e("construct reporte data failed, err: %d", rc);
             }
 
         }
@@ -693,8 +680,6 @@ int qcloud_iot_explorer_demo(void)
         HAL_SleepMs(1000);
     }
 
-    rc = IOT_Template_Destroy(client);
-
-    return rc;
+    rc = IOT_Template_Destroy_Except_MQTT(client);
+    return NULL;
 }
-

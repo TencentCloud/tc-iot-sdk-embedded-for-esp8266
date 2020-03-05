@@ -37,32 +37,32 @@ extern "C" {
 #define MAX_SIZE_OF_JSON_WITH_CLIENT_TOKEN                          (MAX_SIZE_OF_CLIENT_TOKEN + 20)
 
 
-#define CLIENT_TOKEN_FIELD          "clientToken"
-#define METHOD_FIELD                "method"
-#define TYPE_FIELD                  "type"
-#define ACTION_ID_FIELD             "actionId"
-#define TIME_STAMP_FIELD            "timestamp"
+#define CLIENT_TOKEN_FIELD     		"clientToken"
+#define METHOD_FIELD	         	"method"
+#define TYPE_FIELD	         		"type"
+#define ACTION_ID_FIELD     		"actionId"
+#define TIME_STAMP_FIELD     		"timestamp"
 
-#define REPLY_CODE                  "code"
-#define REPLY_STATUS                "status"
+#define REPLY_CODE					"code"
+#define REPLY_STATUS				"status"
 
-#define GET_STATUS                  "get_status"            //method field for get_status
-#define GET_STATUS_REPLY            "get_status_reply"      //method field for get_status reply
+#define GET_STATUS					"get_status"			//method field for get_status
+#define GET_STATUS_REPLY			"get_status_reply"		//method field for get_status reply
 
-#define CONTROL_CMD                 "control"               //method field for control msg
-#define CONTROL_CMD_REPLY           "control_reply"         //method field for control msg reply
+#define CONTROL_CMD					"control"				//method field for control msg
+#define CONTROL_CMD_REPLY			"control_reply"			//method field for control msg reply
 
-#define CLEAR_CONTROL               "clear_control"         //method field for clear control
+#define CLEAR_CONTROL				"clear_control"			//method field for clear control
 
-#define REPORT_CMD                  "report"                //method field for report
-#define REPORT_CMD_REPLY            "report_reply"          //method field for report reply
+#define REPORT_CMD					"report"				//method field for report
+#define REPORT_CMD_REPLY			"report_reply"			//method field for report reply
 
-#define INFO_CMD                    "report_info"           //method field for report system informaiton
-#define INFO_CMD_REPLY              "report_info_reply"     //method field for report system informaiton reply
+#define INFO_CMD					"report_info"			//method field for report system informaiton
+#define INFO_CMD_REPLY				"report_info_reply"		//method field for report system informaiton reply
 
 
-#define GET_CONTROL_PARA            "data.control"
-#define CMD_CONTROL_PARA            "params"
+#define GET_CONTROL_PARA			"data.control"
+#define CMD_CONTROL_PARA			"params"
 
 
 /**
@@ -70,13 +70,13 @@ extern "C" {
  */
 typedef struct _RequestParam {
 
-    Method                  method;                 // method type: GET, REPORT, RINFO, REPLY, CLEAR
+    Method               	method;              	// method type: GET, REPORT, RINFO, REPLY, CLEAR
 
-    uint32_t                timeout_sec;            // request timeout in second
+    uint32_t             	timeout_sec;         	// request timeout in second
 
-    OnReplyCallback         request_callback;       // request callback
+    OnReplyCallback    		request_callback;    	// request callback
 
-    void                    *user_context;          // user context for callback
+    void                 	*user_context;          // user context for callback
 
 } RequestParams;
 
@@ -102,9 +102,9 @@ typedef struct {
  */
 typedef struct {
 
-    void *property;
+    void *property;							
 
-    OnPropRegCallback callback;
+    OnPropRegCallback callback;      		
 
 } PropertyHandler;
 
@@ -114,9 +114,9 @@ typedef struct {
  */
 typedef struct {
 
-    void *action;
+    void *action;							
 
-    OnActionHandleCallback callback;
+    OnActionHandleCallback callback;      
 
 } ActionHandler;
 
@@ -144,7 +144,7 @@ void insert_str(char *pDestStr, char *pSourceStr, int pos);
 /**
  * add a JSON node to JSON string
  *
- * @param jsonBuffer    JSON string buffer
+ * @param jsonBuffer   	JSON string buffer
  * @param sizeOfBuffer  size of buffer
  * @param pKey          key of JSON node
  * @param pData         value of JSON node
@@ -156,13 +156,13 @@ int put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void 
 /**
  * add a JSON node to JSON string, data_template's bool type not the same to put_json_node
  *
- * @param jsonBuffer    JSON string buffer
+ * @param jsonBuffer   	JSON string buffer
  * @param sizeOfBuffer  size of buffer
  * @param pKey          key of JSON node
  * @param pData         value of JSON node
  * @param type          value type of JSON node
  * @return              QCLOUD_RET_SUCCESS for success, or err code for failure
- */
+ */ 
 int template_put_json_node(char *jsonBuffer, size_t sizeOfBuffer, const char *pKey, void *pData, JsonDataType type);
 
 /**
@@ -196,7 +196,7 @@ bool parse_client_token(char *pJsonDoc, char **pClientToken);
  * @brief parse field of aciont_id from JSON string
  *
  * @param pJsonDoc       source JSON string
- * @param pActionID      pointer to field of action_id
+ * @param pActionID   	 pointer to field of action_id
  * @return               true for success
  */
 bool parse_action_id(char *pJsonDoc, char **pActionID);
@@ -217,14 +217,14 @@ bool parse_time_stamp(char *pJsonDoc, int32_t *pTimestamp);
  * @param pJsonDoc       source JSON string
  * @param pActionInput   filed of params as action input parameters
  * @return               true for success
- */
+ */ 
 bool parse_action_input(char *pJsonDoc, char **pActionInput);
 
 /**
  * @brief parse field of status from JSON string
  *
  * @param pJsonDoc       source JSON string
- * @param pStatus        pointer to field of status
+ * @param pStatus   	 pointer to field of status
  * @return               true for success
  */
 bool parse_status_return(char *pJsonDoc, char **pStatus);
@@ -233,7 +233,7 @@ bool parse_status_return(char *pJsonDoc, char **pStatus);
  * @brief parse field of code from JSON string
  *
  * @param pJsonDoc       source JSON string
- * @param pCode          pointer to field of Code
+ * @param pCode   		 pointer to field of Code
  * @return               true for success
  */
 bool parse_code_return(char *pJsonDoc, int32_t *pCode);
@@ -252,28 +252,28 @@ bool update_value_if_key_match(char *pJsonDoc, DeviceProperty *pProperty);
 /**
  * @brief parse field of method from JSON string
  *
- * @param pJsonDoc       source JSON string
- * @param pMethod        pointer to field of method
- * @return               true for success
+ * @param pJsonDoc		 source JSON string
+ * @param pMethod 		 pointer to field of method
+ * @return				 true for success
  */
 bool parse_template_method_type(char *pJsonDoc, char **pMethod);
-
+ 
 /**
- * @brief parse field of control from get_status_reply JSON string
+ * @brief parse field of control from get_status_reply JSON string 
  *
- * @param pJsonDoc       source JSON string
- * @param control        pointer to field of control
- * @return               true for success
- */
+ * @param pJsonDoc		 source JSON string
+ * @param control 		 pointer to field of control
+ * @return				 true for success
+ */ 
 bool parse_template_get_control(char *pJsonDoc, char **control);
 
 /**
- * @brief parse field of control from control JSON string
+ * @brief parse field of control from control JSON string 
  *
- * @param pJsonDoc       source JSON string
- * @param control        pointer to field of control
- * @return               true for success
- */
+ * @param pJsonDoc		 source JSON string
+ * @param control 		 pointer to field of control
+ * @return				 true for success
+ */ 
 bool parse_template_cmd_control(char *pJsonDoc, char **control);
 
 #ifdef __cplusplus

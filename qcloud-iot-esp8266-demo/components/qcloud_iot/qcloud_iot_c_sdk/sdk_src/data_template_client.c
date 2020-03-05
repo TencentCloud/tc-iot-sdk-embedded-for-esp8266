@@ -415,9 +415,12 @@ int IOT_Template_Report_Sync(void *handle, char *pJsonDoc, size_t sizeOfBuffer, 
     ReplyAck ack_report = ACK_NONE;
     rc = IOT_Template_Report(handle, pJsonDoc, sizeOfBuffer, _reply_ack_cb, &ack_report, timeout_ms);
     if (rc != QCLOUD_RET_SUCCESS) IOT_FUNC_EXIT_RC(rc);
-
     while (ACK_NONE == ack_report) {
+#ifndef MULTITHREAD_ENABLED
         IOT_Template_Yield(handle, 200);
+#else
+        IOT_Template_Yield_Without_MQTT_Yield(handle, 200);
+#endif
     }
 
     if (ACK_ACCEPTED == ack_report) {
@@ -568,10 +571,14 @@ int IOT_Template_Report_SysInfo_Sync(void *handle, char *pJsonDoc, size_t sizeOf
 
     ReplyAck ack_report = ACK_NONE;
     rc = IOT_Template_Report_SysInfo(handle, pJsonDoc, sizeOfBuffer, _reply_ack_cb, &ack_report, timeout_ms);
-    if (rc != QCLOUD_RET_SUCCESS) IOT_FUNC_EXIT_RC(rc);
 
+    if (rc != QCLOUD_RET_SUCCESS) IOT_FUNC_EXIT_RC(rc);
     while (ACK_NONE == ack_report) {
+#ifndef MULTITHREAD_ENABLED
         IOT_Template_Yield(handle, 200);
+#else
+        IOT_Template_Yield_Without_MQTT_Yield(handle, 200);
+#endif
     }
 
     if (ACK_ACCEPTED == ack_report) {
@@ -640,9 +647,12 @@ int IOT_Template_GetStatus_sync(void *handle, uint32_t timeout_ms)
     ReplyAck ack_request = ACK_NONE;
     rc = IOT_Template_GetStatus(handle, _get_status_reply_ack_cb, &ack_request, timeout_ms);
     if (rc != QCLOUD_RET_SUCCESS) IOT_FUNC_EXIT_RC(rc);
-
     while (ACK_NONE == ack_request) {
+#ifndef MULTITHREAD_ENABLED
         IOT_Template_Yield(handle, 200);
+#else
+        IOT_Template_Yield_Without_MQTT_Yield(handle, 200);
+#endif
     }
 
     if (ACK_ACCEPTED == ack_request) {
@@ -716,7 +726,7 @@ int IOT_Template_Yield(void *handle, uint32_t timeout_ms)
     IOT_FUNC_EXIT_RC(rc);
 }
 
-void* IOT_Template_Construct(TemplateInitParams *pParams)
+void* IOT_Template_Construct(TemplateInitParams *pParams, void *pMqttClient)
 {
     POINTER_SANITY_CHECK(pParams, NULL);
     int rc;
@@ -733,9 +743,18 @@ void* IOT_Template_Construct(TemplateInitParams *pParams)
     mqtt_init_params.event_handle.context = template_client;
 
     void *mqtt_client = NULL;
-    if ((mqtt_client = IOT_MQTT_Construct(&mqtt_init_params)) == NULL) {
-        HAL_Free(template_client);
-        goto End;
+    if (NULL == pMqttClient) {
+        if ((mqtt_client = IOT_MQTT_Construct(&mqtt_init_params)) == NULL) {
+            HAL_Free(template_client);
+            goto End;
+        }
+    } else {
+        mqtt_client = pMqttClient;
+        //TO DO: change device info handle logic
+        rc = iot_device_info_set(pParams->product_id, pParams->device_name);
+        if ( rc != QCLOUD_RET_SUCCESS) {
+            Log_e("failed to set device info: %d", rc);
+        }
     }
 
     template_client->mqtt = mqtt_client;
@@ -756,15 +775,20 @@ void* IOT_Template_Construct(TemplateInitParams *pParams)
     if (rc < 0) {
         Log_e("Subcribe $thing/down/property fail!");
     } else {
+#ifndef MULTITHREAD_ENABLED
         template_client->inner_data.sync_status = rc;
         while (rc == template_client->inner_data.sync_status) {
             IOT_Template_Yield(template_client, 100);
         }
+
         if (0 == template_client->inner_data.sync_status) {
             Log_i("Sync device data successfully");
         } else {
             Log_e("Sync device data failed");
         }
+#else
+        template_client->inner_data.sync_status = 0;
+#endif
     }
 
 #ifdef EVENT_POST_ENABLED
@@ -817,6 +841,53 @@ int IOT_Template_Destroy(void *handle)
 
     IOT_FUNC_EXIT_RC(QCLOUD_RET_SUCCESS)
 }
+
+
+#ifdef MULTITHREAD_ENABLED
+int IOT_Template_Yield_Without_MQTT_Yield(void *handle, uint32_t timeout_ms)
+{
+
+    IOT_FUNC_ENTRY;
+
+    POINTER_SANITY_CHECK(handle, QCLOUD_ERR_INVAL);
+    NUMBERIC_SANITY_CHECK(timeout_ms, QCLOUD_ERR_INVAL);
+
+    Qcloud_IoT_Template *ptemplate = (Qcloud_IoT_Template *)handle;
+    POINTER_SANITY_CHECK(ptemplate, QCLOUD_ERR_INVAL);
+
+    handle_template_expired_reply(ptemplate);
+
+#ifdef EVENT_POST_ENABLED
+    handle_template_expired_event(ptemplate);
+#endif
+
+    IOT_FUNC_EXIT_RC(QCLOUD_RET_SUCCESS);
+}
+
+int IOT_Template_Destroy_Except_MQTT(void *handle)
+{
+    IOT_FUNC_ENTRY;
+
+    POINTER_SANITY_CHECK(handle, QCLOUD_ERR_INVAL);
+
+    Qcloud_IoT_Template* template_client = (Qcloud_IoT_Template*)handle;
+    qcloud_iot_template_reset(handle);
+
+    if (NULL != template_client->mutex) {
+        HAL_MutexDestroy(template_client->mutex);
+    }
+
+    if (NULL != template_client->inner_data.downstream_topic) {
+        HAL_Free(template_client->inner_data.downstream_topic);
+        template_client->inner_data.downstream_topic = NULL;
+    }
+
+    HAL_Free(handle);
+
+    IOT_FUNC_EXIT_RC(QCLOUD_RET_SUCCESS)
+}
+
+#endif
 
 #ifdef __cplusplus
 }

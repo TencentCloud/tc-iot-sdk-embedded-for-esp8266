@@ -16,7 +16,10 @@
 
 #include "qcloud_iot_export.h"
 #include "qcloud_iot_import.h"
+#include "qcloud_iot_demo.h"
 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 
 DeviceInfo  sg_devinfo = {0};
 
@@ -181,6 +184,29 @@ static int _register_subscribe_topics(void *client, char *key_word, int qos)
     return IOT_MQTT_Subscribe(client, topic_name, &sub_params);
 }
 
+#ifdef MULTITHREAD_ENABLED
+#define YEILD_THREAD_STACK_SIZE     2048
+#define THREAD_SLEEP_INTERVAL_MS    1
+static bool sg_yield_thread_running = true;
+
+static void *mqtt_yield_thread(void *ptr)
+{
+    int rc = QCLOUD_RET_SUCCESS;
+    void *pClient = ptr;
+    Log_d("template yield thread start ...");
+    while (sg_yield_thread_running) {
+        rc = IOT_MQTT_Yield(pClient, 200);
+        if (rc == QCLOUD_ERR_MQTT_ATTEMPTING_RECONNECT) {
+            HAL_SleepMs(THREAD_SLEEP_INTERVAL_MS);
+            continue;
+        } else if (rc != QCLOUD_RET_SUCCESS && rc != QCLOUD_RET_MQTT_RECONNECTED) {
+            Log_e("Something goes error: %d", rc);
+        }
+        HAL_SleepMs(THREAD_SLEEP_INTERVAL_MS);
+    }
+    return NULL;
+}
+#endif
 
 int qcloud_iot_hub_demo(void)
 {
@@ -221,18 +247,36 @@ int qcloud_iot_hub_demo(void)
     rc = _register_subscribe_topics(client, "data", sub_qos);
     if (rc < 0) {
         Log_e("Client Subscribe Topic Failed: %d", rc);
-        return rc;
+        goto exit;
     }
 
     rc = _register_subscribe_topics(client, "control", QOS0);
     if (rc < 0) {
         Log_e("Client Subscribe Topic Failed: %d", rc);
-        return rc;
+        goto exit;
     }
 
-    rc = IOT_MQTT_Yield(client, 200);
+#ifdef MULTITHREAD_ENABLED
+    TaskHandle_t yield_thread_t = NULL;
+    yield_thread_t = HAL_ThreadCreate(YEILD_THREAD_STACK_SIZE, 3, "mqtt_yield_thread", mqtt_yield_thread, client);
+    if (yield_thread_t == NULL) {
+        Log_e("create yield thread fail");
+        goto exit;
+    }
+#endif
 
     do {
+
+#ifndef MULTITHREAD_ENABLED
+        rc = IOT_MQTT_Yield(client, 200);
+        if (rc == QCLOUD_ERR_MQTT_ATTEMPTING_RECONNECT) {
+            HAL_SleepMs(1000);
+            continue;
+        } else if (rc != QCLOUD_RET_SUCCESS && rc != QCLOUD_RET_MQTT_RECONNECTED) {
+            Log_e("exit with error: %d", rc);
+            break;
+        }
+#endif
         //wait for sub result
         if (sg_sub_packet_id > 0 && !(count % pub_interval)) {
             count = 0;
@@ -242,26 +286,24 @@ int qcloud_iot_hub_demo(void)
             }
         }
 
-        rc = IOT_MQTT_Yield(client, 500);
-
-        if (rc == QCLOUD_ERR_MQTT_ATTEMPTING_RECONNECT) {
-            HAL_SleepMs(1000);
-            continue;
-        } else if (rc != QCLOUD_RET_SUCCESS && rc != QCLOUD_RET_MQTT_RECONNECTED) {
-            Log_e("exit with error: %d", rc);
-            break;
-        }
-
         HAL_SleepMs(1000);
-
         count++;
 
     } while (loop);
 
+exit:
 
     rc = IOT_MQTT_Destroy(&client);
 
     return rc;
 }
 
+int qcloud_iot_explorer_demo(eDemoType eType)
+{
+    if (eDEMO_MQTT != eType) {
+        Log_e("Demo config (%d) illegal, please check", eType);
+        return QCLOUD_ERR_FAILURE;
+    }
 
+    return qcloud_iot_hub_demo();
+}

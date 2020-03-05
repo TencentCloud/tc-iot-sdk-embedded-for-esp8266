@@ -186,8 +186,9 @@ void qcloud_demo_task(void* parm)
     if (wifi_connected) {
         setup_sntp();
         Log_i("WiFi is ready, to do Qcloud IoT demo");
+        Log_d("timestamp now:%d", HAL_Timer_current_sec());
 #ifdef CONFIG_QCLOUD_IOT_EXPLORER_ENABLED
-        qcloud_iot_explorer_demo();
+        qcloud_iot_explorer_demo(CONFIG_DEMO_EXAMPLE_SELECT);
 #else
         qcloud_iot_hub_demo();
 #endif
@@ -199,15 +200,24 @@ void qcloud_demo_task(void* parm)
     vTaskDelete(NULL);
 }
 
+
 void app_main()
 {
+    int stack_size;
+
     ESP_ERROR_CHECK(nvs_flash_init());
 
     //init log level
     IOT_Log_Set_Level(eLOG_DEBUG);
-
     board_init();
 
-    xTaskCreate(qcloud_demo_task, "qcloud_demo_task", 16384, NULL, 3, NULL);
+#ifdef CONFIG_QCLOUD_IOT_EXPLORER_ENABLED
+    stack_size = (eDEMO_GATEWAY == CONFIG_DEMO_EXAMPLE_SELECT) ? 8196 : 16384; // OTA sample need a large stack while GateWay sample need save stack for sub-thread
+#else
+    stack_size = 16384;
+#endif
+
+    xTaskCreate(qcloud_demo_task, "qcloud_demo_task", stack_size, NULL, 3, NULL);
+
 }
 
