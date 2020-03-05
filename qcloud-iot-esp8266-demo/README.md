@@ -112,12 +112,30 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 ### 5.编译及烧写
 执行make menuconfig可进行功能配置，顶层菜单里面有对本示例的配置（QCloud IoT demo Configuration）
 ```
-    [*] To demo IoT Explorer (y) or IoT Hub (n)
-    [*] To use WiFi boarding (softAP) or not
-    (YOUR_WIFI) WiFi SSID
-    (12345678) WiFi PASSWORD
+   [*] To demo IoT Explorer (y) or IoT Hub (n)                                       
+         Select explorer demo example (Smart light example)  --->                      
+   [*] To use WiFi boarding (softAP) or not                                          
+   (YOUR_SSID) WiFi SSID                                                             
+   (YOUR_WIFI_PW) WiFi PASSWORD   
 ```
-第一项可选择演示IoT Explorer示例（勾选）或者IoT Hub示例（不勾选）
+
+第一项可选择演示IoT Explorer示例（勾选）或者IoT Hub示例（不勾选），勾选IoT Explorer示例，则可通过示例选择子菜单进一步选择需要demo的示例，支持的示例有智能灯、网关、OTA、二进制、MQTT
+
+```
+		   Select explorer demo example 
+  Use the arrow keys to navigate this window or press the      
+  hotkey of the item you wish to select followed by the <SPACE 
+  BAR>. Press <?> for additional information about this        
+ ┌───────────────────────────────────────────────────────────┐ 
+ │                  (X) Smart light example                  │ 
+ │                  ( ) Gateway example                      │ 
+ │                  ( ) OTA example                          │ 
+ │                  ( ) Raw data example                     │ 
+ │                  ( ) Mqtt example                         │ 
+ │                                                           │ 
+ └───────────────────────────────────────────────────────────┘ 
+```
+
 第二项可选择是先进入softAP配网模式（勾选）或者直接连接目标WiFi路由器（不勾选），配网模式需要与腾讯连连小程序进行配合
 如果选择直接连接WiFi目标路由器，则后面两项可以用于配置要连接的WiFi路由器热点信息
 
