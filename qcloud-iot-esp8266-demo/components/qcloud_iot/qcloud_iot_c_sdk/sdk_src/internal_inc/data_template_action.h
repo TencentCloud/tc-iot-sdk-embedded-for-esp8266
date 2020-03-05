@@ -26,14 +26,14 @@ extern "C" {
 #include <stddef.h>
 
 
-#define ACTION_NAME_MAX_LEN         (20)  // action name max len
-#define ACTION_TOKEN_MAX_LEN        (32)  // action token max len
+#define ACTION_NAME_MAX_LEN			(20)  // action name max len
+#define ACTION_TOKEN_MAX_LEN	    (32)  // action token max len
 
-#define MAX_ACTION_WAIT_REPLY       (10)
-#define ACTION_MAX_DATA_NUM         (255) // input or output max data num
+#define MAX_ACTION_WAIT_REPLY       (10)  
+#define ACTION_MAX_DATA_NUM		    (255) // input or output max data num
 
-#define REPORT_ACTION           "action_reply"
-#define CALL_ACTION             "action"
+#define REPORT_ACTION			"action_reply"
+#define CALL_ACTION			    "action"
 
 int IOT_Action_Init(void *c);
 

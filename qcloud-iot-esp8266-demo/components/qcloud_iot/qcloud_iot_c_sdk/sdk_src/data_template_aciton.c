@@ -122,8 +122,9 @@ static void _handle_aciton(Qcloud_IoT_Template *pTemplate, List *list, const cha
 static void _on_action_handle_callback(void *pClient, MQTTMessage *message, void *pUserData)
 {
     POINTER_SANITY_CHECK_RTN(message);
-    Qcloud_IoT_Client *mqtt_client = (Qcloud_IoT_Client *)pClient;
-    Qcloud_IoT_Template *template_client = (Qcloud_IoT_Template*)mqtt_client->event_handle.context;
+//  Qcloud_IoT_Client *mqtt_client = (Qcloud_IoT_Client *)pClient;
+//  Qcloud_IoT_Template *template_client = (Qcloud_IoT_Template*)mqtt_client->event_handle.context;
+    Qcloud_IoT_Template *template_client = (Qcloud_IoT_Template *)pUserData;
 
     char *type_str = NULL;
     char* client_token = NULL;
@@ -192,6 +193,7 @@ int IOT_Action_Init(void *c)
 
     SubscribeParams sub_params = DEFAULT_SUB_PARAMS;
     sub_params.on_message_handler = _on_action_handle_callback;
+    sub_params.user_data = pTemplate;
 
     return IOT_MQTT_Subscribe(pTemplate->mqtt, topic_name, &sub_params);
 }

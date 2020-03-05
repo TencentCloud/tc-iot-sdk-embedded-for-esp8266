@@ -1,7 +1,7 @@
 /* #undef AUTH_MODE_CERT */
 #define AUTH_MODE_KEY
 /* #undef AUTH_WITH_NOTLS */
-/* #undef GATEWAY_ENABLED */
+#define GATEWAY_ENABLED
 /* #undef COAP_COMM_ENABLED */
 #define OTA_MQTT_CHANNEL
 /* #undef SYSTEM_COMM */
@@ -15,3 +15,8 @@
 /* #undef AT_UART_RECV_IRQ */
 /* #undef AT_OS_USED */
 /* #undef AT_DEBUG */
+//#define OTA_USE_HTTPS
+
+#ifdef GATEWAY_ENABLED
+#define MULTITHREAD_ENABLED
+#endif

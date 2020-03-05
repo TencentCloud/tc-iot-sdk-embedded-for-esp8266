@@ -45,24 +45,24 @@ typedef enum {
  * @brief JSON data type
  */
 typedef enum {
-    JINT32,
-    JINT16,
-    JINT8,
-    JUINT32,
-    JUINT16,
-    JUINT8,
-    JFLOAT,
-    JDOUBLE,
-    JBOOL,
-    JSTRING,
-    JOBJECT
+    JINT32,      
+    JINT16,      
+    JINT8,      
+    JUINT32,     
+    JUINT16,     
+    JUINT8,      
+    JFLOAT,     
+    JDOUBLE,     
+    JBOOL,       
+    JSTRING,     
+    JOBJECT      
 } JsonDataType;
 
 /**
  * @brief Define a device property, as a JSON document node
  */
 typedef struct _JSONNode {
-    char         *key;    // Key of this JSON node
+    char   		 *key;    // Key of this JSON node
     void         *data;   // Value of this JSON node
     uint16_t     data_buff_len;  // data buff len, for string type value update
     JsonDataType type;    // Data type of this JSON node
@@ -73,10 +73,10 @@ typedef struct _JSONNode {
  */
 typedef struct {
     char    *pActionId;     // action id
-    uint32_t timestamp;     // action timestamp
+    uint32_t timestamp;	    // action timestamp
     uint8_t  input_num;     // input num
     uint8_t  output_num;    // output mun
-    DeviceProperty *pInput;  // input
+    DeviceProperty *pInput;  // input 
     DeviceProperty *pOutput; // output
 } DeviceAction;
 
@@ -85,11 +85,11 @@ typedef struct {
  * @brief Define MQTT data_template callback when request response arrived
  *
  * @param method         type of request
- * @param requestAck     response type
+ * @param requestAck     response type 
  * @param pJsonDocument  JSON document from server
  * @param userContext    User context
  *
- */
+ */  
 typedef void (*OnReplyCallback)(void *pClient, Method method, ReplyAck replyAck, const char *pJsonDocument, void *userContext);
 
 
@@ -103,7 +103,7 @@ typedef void (*OnReplyCallback)(void *pClient, Method method, ReplyAck replyAck,
 typedef void (*OnPropRegCallback)(void *pClient, const char *pJsonValueBuffer, uint32_t valueLength, DeviceProperty *pProperty);
 
 /**
- * @brief action handle callback
+ * @brief action handle callback 
  *
  * @param pAction   action with input data
  */

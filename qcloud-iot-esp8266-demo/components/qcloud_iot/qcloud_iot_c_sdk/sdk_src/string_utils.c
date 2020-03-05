@@ -170,3 +170,17 @@ void LITE_replace_substr(char originalString[], char key[], char swap[])
         }
     }
 }
+
+void LITE_str_strip_char(char *src, char destCh)
+{
+    char *end = src + strlen(src) + 1;
+
+    while (*src != '\0') {
+        if (*src == destCh) {
+            memmove(src, src + 1, end - src);
+            end--;
+        }
+        src++;
+    }
+}
+

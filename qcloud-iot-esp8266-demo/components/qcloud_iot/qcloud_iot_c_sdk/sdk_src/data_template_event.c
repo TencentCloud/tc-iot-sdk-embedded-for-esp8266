@@ -93,8 +93,10 @@ static void _traverse_event_list(Qcloud_IoT_Template *pTemplate, List *list, con
 static void _on_event_reply_callback(void *pClient, MQTTMessage *message, void *userData)
 {
     POINTER_SANITY_CHECK_RTN(message);
-    Qcloud_IoT_Client *mqtt_client = (Qcloud_IoT_Client *)pClient;
-    Qcloud_IoT_Template *template_client = (Qcloud_IoT_Template*)mqtt_client->event_handle.context;
+//  Qcloud_IoT_Client *mqtt_client = (Qcloud_IoT_Client *)pClient;
+//  Qcloud_IoT_Template *template_client = (Qcloud_IoT_Template*)mqtt_client->event_handle.context;
+    Qcloud_IoT_Template *template_client = (Qcloud_IoT_Template*)userData;
+
 
     int32_t code;
     char* client_token = NULL;
@@ -304,7 +306,7 @@ static int _iot_construct_event_json(void *handle, char *jsonBuffer, size_t size
     } else { //single
         sEvent *pEvent = pEventArry[0];
         if (0 == pEvent->timestamp) { //no accurate UTC time, set 0
-            rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "{\"eventId\":\"%s\", \"type\":\"%s\", \"timestamp\":0, \"params\":{", \
+            rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"eventId\":\"%s\", \"type\":\"%s\", \"timestamp\":0, \"params\":{", \
                                           pEvent->event_name, pEvent->type);
         } else { // accurate UTC time is second,change to ms
             rc_of_snprintf = HAL_Snprintf(jsonBuffer + strlen(jsonBuffer), remain_size, "\"eventId\":\"%s\", \"type\":\"%s\", \"timestamp\":%u000, \"params\":{", \
@@ -370,7 +372,7 @@ static int _publish_event_to_cloud(void *c, char *pJsonDoc)
     }
 
     PublishParams pubParams = DEFAULT_PUB_PARAMS;
-    pubParams.qos = QOS0;
+    pubParams.qos = QOS1;
     pubParams.payload_len = strlen(pJsonDoc);
     pubParams.payload = (char *) pJsonDoc;
 
@@ -424,6 +426,7 @@ int IOT_Event_Init(void *c)
     }
     SubscribeParams sub_params = DEFAULT_SUB_PARAMS;
     sub_params.on_message_handler = _on_event_reply_callback;
+    sub_params.user_data = pTemplate;
 
     return IOT_MQTT_Subscribe(pTemplate->mqtt, topic_name, &sub_params);
 }
