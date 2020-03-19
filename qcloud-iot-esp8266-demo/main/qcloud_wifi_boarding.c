@@ -244,7 +244,7 @@ static int app_send_error_log(comm_peer_t *peer, uint8_t record, uint16_t err_id
                  g_err_log[err_id], err_id, err_sub_id);
 
     cJSON * reply_json = cJSON_CreateObject();
-    cJSON_AddNumberToObject(reply_json, "cmdType", CMD_REPORT);
+    cJSON_AddNumberToObject(reply_json, "cmdType", (int)CMD_REPORT);
     cJSON_AddStringToObject(reply_json, "deviceReply", record == CUR_ERR ? "Current_Error" : "Previous_Error");
     cJSON_AddStringToObject(reply_json, "log", msg_str);
     if (0 == cJSON_PrintPreallocated(reply_json, json_str, sizeof(json_str), 0)) {
@@ -616,14 +616,12 @@ static int wifi_ap_init(const char *ssid, const char *psw, uint8_t ch)
     //should disconnect first, could be failed if not connected
     rc = esp_wifi_disconnect();
     if ( ESP_OK != rc ) {
-        Log_e("esp_wifi_disconnect failed: %d", rc);
-        //return rc;
+        Log_w("esp_wifi_disconnect failed: %d", rc);
     }
 
     rc = esp_wifi_stop();
     if (rc != ESP_OK) {
-        Log_e("esp_wifi_stop failed: %d", rc);
-        //return rc;
+        Log_w("esp_wifi_stop failed: %d", rc);
     }
 
     if (esp_event_loop_init(_wifi_event_handler, NULL) && g_cb_bck == NULL) {
@@ -685,8 +683,7 @@ static int wifi_sta_init(void)
 
     rc = esp_wifi_stop();
     if (rc != ESP_OK) {
-        Log_e("esp_wifi_stop failed: %d", rc);
-        return rc;
+        Log_w("esp_wifi_stop failed: %d", rc);
     }
 
     if (esp_event_loop_init(_wifi_event_handler, NULL) && g_cb_bck == NULL) {
@@ -747,7 +744,7 @@ static int app_reply_msg(comm_peer_t *peer, char *msg_str)
     int ret;
     char json_str[128] = {0};
     cJSON * reply_json = cJSON_CreateObject();
-    cJSON_AddNumberToObject(reply_json, "cmdType", CMD_REPORT);
+    cJSON_AddNumberToObject(reply_json, "cmdType", (int)CMD_REPORT);
     cJSON_AddStringToObject(reply_json, "deviceReply", msg_str);
 
     if (0 == cJSON_PrintPreallocated(reply_json, json_str, sizeof(json_str), 0)) {
@@ -816,7 +813,7 @@ static void _get_next_conn_id(char *conn_id)
     conn_id[MAX_CONN_ID_LEN - 1] = '\0';
 }
 
-static int app_reply_signature(comm_peer_t *peer, double time_value)
+static int app_reply_signature(comm_peer_t *peer, int time_value)
 {
 #define SIGNATURE_SIZE 40
 
@@ -835,7 +832,7 @@ static int app_reply_signature(comm_peer_t *peer, double time_value)
     }
 
     char signature[SIGNATURE_SIZE + 1] = {0};
-    ret = calc_device_sign(signature, (int)time_value, conn_id,
+    ret = calc_device_sign(signature, time_value, conn_id,
                            devinfo.product_id, devinfo.device_name, devinfo.device_secret);
     if (ret) {
         Log_e("calc signature failed: %d", ret);
@@ -845,7 +842,7 @@ static int app_reply_signature(comm_peer_t *peer, double time_value)
     strcpy(devinfo.device_secret, "null");
 
     cJSON * reply_json = cJSON_CreateObject();
-    cJSON_AddNumberToObject(reply_json, "cmdType", CMD_REPORT);
+    cJSON_AddNumberToObject(reply_json, "cmdType", (int)CMD_REPORT);
     cJSON_AddStringToObject(reply_json, "productId", devinfo.product_id);
     cJSON_AddStringToObject(reply_json, "deviceName", devinfo.device_name);
     cJSON_AddStringToObject(reply_json, "connId", conn_id);
@@ -920,12 +917,12 @@ static int app_handle_recv_data(comm_peer_t *peer, char *pdata, int len)
                 app_send_error_log(peer, CUR_ERR, ERR_APP_CMD, ERR_APP_CMD_TIMESTAMP);
                 return -1;
             }
-            double time_value = timestamp_json->valuedouble;
+            int time_value = timestamp_json->valueint;
             cJSON_Delete(root);
 
             if (g_smart_task_run || g_sap_task_run) {
                 /* wait for WiFi/MQTT connect event */
-                uint32_t mqtt_cnt = 5;
+                uint32_t mqtt_cnt = 6;
                 while ((!g_mqtt_connected) && (mqtt_cnt--)) {
                     HAL_SleepMs(1000);
                 }
@@ -953,10 +950,9 @@ static int app_handle_recv_data(comm_peer_t *peer, char *pdata, int len)
             if (ssid_json && psw_json) {
                 wifi_config_t router_wifi_config = {0};
                 memset(&router_wifi_config, 0, sizeof(router_wifi_config));
-                strcpy((char *)router_wifi_config.sta.ssid, ssid_json->valuestring);
-                strcpy((char *)router_wifi_config.sta.password, psw_json->valuestring);
+                strncpy((char *)router_wifi_config.sta.ssid, ssid_json->valuestring, 32);
+                strncpy((char *)router_wifi_config.sta.password, psw_json->valuestring, 64);
                 cJSON_Delete(root);
-                app_reply_msg(peer, "dataRecived");
 
                 if (!g_ssid_pwd_recv) {
                     Log_i("APSTA to connect SSID:%s PASSWORD:%s", router_wifi_config.sta.ssid, router_wifi_config.sta.password);
@@ -970,6 +966,9 @@ static int app_handle_recv_data(comm_peer_t *peer, char *pdata, int len)
                     g_ssid_pwd_recv = true;
                 }
 
+                // delay reply to gain more time for wifi connect
+                HAL_SleepMs(2000);
+                app_reply_msg(peer, "dataRecived");
                 /* 0:  NO error but need to wait for next cmd
                       * 1: Everything OK and we've finished the job */
                 if (g_signature_sent)
@@ -1370,7 +1369,7 @@ void softAP_task(void *pvParameters)
             if (ret) {
                 push_error_log(ERR_MQTT_CONNECT, ret);
             } else {
-                Log_i("WIFI_CONNECT_SUCCESS\n");
+                Log_i("SoftAP: WIFI_MQTT_CONNECT_SUCCESS");
                 set_wifi_led_state(WIFI_LED_ON);
             }
 
@@ -1398,6 +1397,9 @@ void softAP_task(void *pvParameters)
         Log_w("softap timeout");
         push_error_log(ERR_BD_STOP, ERR_SC_EXEC_TIMEOUT);
     }
+
+    if (!g_comm_task_run)
+        save_error_log();
 
     Log_i("softAP task quit");
     vTaskDelete(NULL);
@@ -1579,7 +1581,7 @@ void smartconfig_task(void * parm)
             if (ret) {
                 push_error_log(ERR_MQTT_CONNECT, ret);
             } else {
-                Log_i("+TCSTARTSMART:WIFI_CONNECT_SUCCESS\n");
+                Log_i("SmartConfig: WIFI_MQTT_CONNECT_SUCCESS");
                 set_wifi_led_state(WIFI_LED_ON);
             }
 
