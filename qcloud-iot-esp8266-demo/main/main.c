@@ -168,11 +168,11 @@ void qcloud_demo_task(void* parm)
     if (ret) {
         Log_e("softAP start failed: %d", ret);
     } else {
-        /* max waiting: 150 * 2000ms */
-        int wait_cnt = 150;
+        /* max waiting: 120 * 5000ms */
+        int wait_cnt = 120;
         do {
             Log_d("waiting for boarding result...");
-            HAL_SleepMs(2000);
+            HAL_SleepMs(5000);
             wifi_connected = is_wifi_boarding_successful();
         } while (!wifi_connected && wait_cnt--);
     }

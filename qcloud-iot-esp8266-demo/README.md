@@ -13,7 +13,7 @@
 git clone --single-branch -b release/v3.1 https://github.com/espressif/ESP8266_RTOS_SDK.git
 ```
 
-编译toolchain请参考ESP8266_RTOS_SDK/README.md，推荐使用
+toolchain的获取请参考ESP8266_RTOS_SDK/README.md，推荐在Linux环境使用
 * [Linux(64) GCC 5.2.0](https://dl.espressif.com/dl/xtensa-lx106-elf-linux64-1.22.0-92-g8facf4c-5.2.0.tar.gz)
 
 在Linux安装toolchain之后，需要将toolchain的bin目录添加到PATH环境变量中
@@ -26,7 +26,7 @@ sudo apt install flex bison gperf
 ```
 
 ### 2.从腾讯云物联 C-SDK 中抽取相关代码
-项目默认包含了一个基于腾讯云IoT Explorer C-SDK v3.1.0的代码。如不需要更新可直接跳到第四步
+项目默认包含了一个基于腾讯云IoT Explorer C-SDK v3.1.1的代码。**如不需要更新可直接跳到第四步**
 
 如果有需要更新SDK，可根据使用的平台按下面步骤下载更新：
 ##### 从GitHub下载C-SDK代码
