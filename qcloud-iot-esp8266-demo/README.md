@@ -8,6 +8,8 @@
 如果编译选择了配网模式和IoT Explorer demo（默认选项），则程序正常启动之后，会先进入配网模式（蓝色LED灯处于闪烁状态），可使用腾讯连连小程序进行配网，成功之后可以用小程序控制开发板上面绿色LED的亮灭。
 
 ### 1. 获取 ESP8266_RTOS_SDK 以及编译器
+本项目基于**Linux(ubuntu)**环境进行开发，关于ESP8266开发的基础知识，请参考其 [开发指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/linux-setup.html)
+
 在当前目录下获取ESP8266 RTOS SDK 3.1
 ```
 git clone --single-branch -b release/v3.1 https://github.com/espressif/ESP8266_RTOS_SDK.git
@@ -20,9 +22,9 @@ toolchain的获取请参考ESP8266_RTOS_SDK/README.md，推荐在Linux环境使�
 
 ESP8266_RTOS_SDK编译需要python及pip，并且需要安装以下python库及软件
 ```
+sudo apt-get install git wget flex bison gperf python python-pip python-setuptools cmake ninja-build ccache libffi-dev libssl-dev
 pip install pyserial
 pip install xlrd
-sudo apt install flex bison gperf
 ```
 
 ### 2.从腾讯云物联 C-SDK 中抽取相关代码
