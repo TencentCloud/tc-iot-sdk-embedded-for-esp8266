@@ -1,13 +1,13 @@
 /* #undef AUTH_MODE_CERT */
 #define AUTH_MODE_KEY
 /* #undef AUTH_WITH_NOTLS */
-#define GATEWAY_ENABLED
+//#define GATEWAY_ENABLED
 /* #undef COAP_COMM_ENABLED */
 #define OTA_MQTT_CHANNEL
 /* #undef SYSTEM_COMM */
 #define EVENT_POST_ENABLED
 #define ACTION_ENABLED
-/* #undef DEV_DYN_REG_ENABLED */
+#define DEV_DYN_REG_ENABLED
 /* #undef LOG_UPLOAD */
 /* #undef IOT_DEBUG */
 /* #undef DEBUG_DEV_INFO_USED */

@@ -1,5 +1,6 @@
 /*
- * Copyright (c) 2020 Tencent Cloud. All rights reserved.
+ * Tencent is pleased to support the open source community by making IoT Hub available.
+ * Copyright (C) 2016 THL A29 Limited, a Tencent company. All rights reserved.
 
  * Licensed under the MIT License (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
@@ -12,20 +13,19 @@
  *
  */
 
+#ifndef QLCOUD_IOT_EXPORT_DYNREG_H_ 
+#define QLCOUD_IOT_EXPORT_DYNREG_H_
 
-#ifndef __QCLOUD_WIFI_BOARDING_H__
-#define __QCLOUD_WIFI_BOARDING_H__
-
-
-int start_softAP(const char *ssid, const char *psw, uint8_t ch);
-
-void stop_softAP(void);
-
-int start_smartconfig(void);
-
-void stop_smartconfig(void);
-
-bool is_wifi_boarding_successful(void);
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 
-#endif //__QCLOUD_WIFI_BOARDING_H__
+int qcloud_iot_dyn_reg_dev(DeviceInfo *pDevInfo);
+
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif //IOT_MQTT_CLIENT_H_

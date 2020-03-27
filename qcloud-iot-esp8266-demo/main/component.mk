@@ -3,6 +3,7 @@
 #
 
 COMPONENT_ADD_INCLUDEDIRS += ./
+COMPONENT_ADD_INCLUDEDIRS += ./wifi_config
 
 ifdef CONFIG_SMART_LIGHT_ENABLED
 COMPONENT_SRCDIRS += ./samples/data_template_light
@@ -26,4 +27,8 @@ endif
 
 ifndef CONFIG_QCLOUD_IOT_EXPLORER_ENABLED
 COMPONENT_SRCDIRS += ./samples/mqtt
+endif
+
+ifdef CONFIG_WIFI_CONFIG_ENABLED
+COMPONENT_SRCDIRS += ./wifi_config
 endif

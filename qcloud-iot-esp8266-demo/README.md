@@ -8,27 +8,25 @@
 如果编译选择了配网模式和IoT Explorer demo（默认选项），则程序正常启动之后，会先进入配网模式（蓝色LED灯处于闪烁状态），可使用腾讯连连小程序进行配网，成功之后可以用小程序控制开发板上面绿色LED的亮灭。
 
 ### 1. 获取 ESP8266_RTOS_SDK 以及编译器
-本项目基于**Linux(ubuntu)**环境进行开发，关于ESP8266开发的基础知识，请参考其 [开发指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/linux-setup.html)
-
 在当前目录下获取ESP8266 RTOS SDK 3.1
 ```
 git clone --single-branch -b release/v3.1 https://github.com/espressif/ESP8266_RTOS_SDK.git
 ```
 
-toolchain的获取请参考ESP8266_RTOS_SDK/README.md，推荐在Linux环境使用
+编译toolchain请参考ESP8266_RTOS_SDK/README.md，推荐使用
 * [Linux(64) GCC 5.2.0](https://dl.espressif.com/dl/xtensa-lx106-elf-linux64-1.22.0-92-g8facf4c-5.2.0.tar.gz)
 
 在Linux安装toolchain之后，需要将toolchain的bin目录添加到PATH环境变量中
 
 ESP8266_RTOS_SDK编译需要python及pip，并且需要安装以下python库及软件
 ```
-sudo apt-get install git wget flex bison gperf python python-pip python-setuptools cmake ninja-build ccache libffi-dev libssl-dev
 pip install pyserial
 pip install xlrd
+sudo apt install flex bison gperf
 ```
 
 ### 2.从腾讯云物联 C-SDK 中抽取相关代码
-项目默认包含了一个基于腾讯云IoT Explorer C-SDK v3.1.1的代码。**如不需要更新可直接跳到第四步**
+项目默认包含了一个基于腾讯云IoT Explorer C-SDK v3.1.0的代码。如不需要更新可直接跳到第四步
 
 如果有需要更新SDK，可根据使用的平台按下面步骤下载更新：
 ##### 从GitHub下载C-SDK代码
@@ -65,7 +63,7 @@ sdk_src为SDK的核心逻辑及协议相关代码，一般不需要修改，其�
 ### 3.工程目录结构
 在下载了ESP8266 RTOS SDK以及拷贝qcloud_iot_c_sdk之后，应该具有以下目录结构（部分文件没有展示出来）
 ```
-QCloud_IoT_ESP8266_RTOS/
+qcloud-iot-esp8266-demo/
 ├── components
 │   └── qcloud_iot
 │       ├── component.mk
@@ -92,6 +90,7 @@ QCloud_IoT_ESP8266_RTOS/
 ├── main
 │   ├── component.mk
 │   └── main.c
+|   └── wifi_config
 ├── Makefile
 ├── partitions_qcloud_demo.csv
 ├── README.md
@@ -116,7 +115,7 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 ```
    [*] To demo IoT Explorer (y) or IoT Hub (n)                                       
          Select explorer demo example (Smart light example)  --->                      
-   [*] To use WiFi boarding (softAP) or not                                          
+   [*] To use WiFi config or not                                          
    (YOUR_SSID) WiFi SSID                                                             
    (YOUR_WIFI_PW) WiFi PASSWORD   
 ```
@@ -138,7 +137,7 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
  └───────────────────────────────────────────────────────────┘ 
 ```
 
-第二项可选择是先进入softAP配网模式（勾选）或者直接连接目标WiFi路由器（不勾选），配网模式需要与腾讯连连小程序进行配合
+第二项可选择是先进入WiFi配网模式（勾选）或者直接连接目标WiFi路由器（不勾选），配网模式需要与腾讯连连小程序进行配合
 如果选择直接连接WiFi目标路由器，则后面两项可以用于配置要连接的WiFi路由器热点信息
 
 再执行make就可以在build目录下面生成镜像。
@@ -150,27 +149,5 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 烧写成功之后可以重启开发板运行程序
 
 ### 6. WiFi配网说明
-工程里面包含了WiFi配网及设备绑定的代码，关于softAP配网协议请看docs目录文档《物联网WiFi设备softAP方式配网》
-##### qcloud_wifi_boarding.c 说明
-- 代码包含了softAP+UDP配网（面向微信小程序）和smartconfig+TCP配网（面向app）两种方式及接口，可分别调用
-- 公用部分包括socket服务与app/小程序按照协议进行通信完成配网，设备绑定及错误信息上报的操作
-- 平台函数依赖于ESP8266 RTOS，MQTT函数依赖于腾讯云物联网C-SDK
-- 目前微信小程序仅支持softAP+UDP配网方式，故smartconfig+TCP部分可以忽略。
+工程里面包含了WiFi配网及设备绑定的代码，关于softAP配网协议及接口使用请看 qcloud-iot-esp-wifi/docs/WiFi设备softAP配网
 
-##### 使用示例
-```
-    /* to use softAP WiFi boarding and device binding with Wechat mini program */
-    int ret = start_softAP("ESP8266-SAP", "12345678", 0);
-    if (ret) {
-        Log_e("softAP start failed: %d", ret);
-    } else {
-        /* max waiting: 150 * 2000ms */
-        int wait_cnt = 150;
-        do {
-            Log_d("waiting for boarding result...");
-            HAL_SleepMs(2000);
-            wifi_connected = is_wifi_boarding_successful();
-        } while (!wifi_connected && wait_cnt--);
-    }
-
-```

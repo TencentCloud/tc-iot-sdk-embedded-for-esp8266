@@ -35,11 +35,12 @@ config DEMO_EXAMPLE_SELECT
     default 4 if MQTT_ENABLED
 
 
-config DEMO_WIFI_BOARDING
-    bool "To use WiFi boarding (softAP) or not"
+config WIFI_CONFIG_ENABLED
+    bool "To use WiFi config or not"
     default y
     help
-        To use WiFi boarding (softAP) or not
+        To use WiFi config (SoftAP or SmartConfig) or not
+
 
 config DEMO_WIFI_SSID
     string "WiFi SSID"
