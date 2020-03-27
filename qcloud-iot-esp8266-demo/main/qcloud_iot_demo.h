@@ -18,14 +18,14 @@
 extern "C" {
 #endif
 
-typedef enum{
-	eDEMO_SMART_LIGHT = 0,
-	eDEMO_GATEWAY 	  = 1,
-	eDEMO_OTA 		  = 2,
-	eDEMO_RAW_DATA 	  = 3,
-	eDEMO_MQTT 	  	  = 4,
-	eDEMO_DEFAULT 
-}eDemoType;
+typedef enum {
+    eDEMO_SMART_LIGHT = 0,
+    eDEMO_GATEWAY     = 1,
+    eDEMO_OTA         = 2,
+    eDEMO_RAW_DATA    = 3,
+    eDEMO_MQTT        = 4,
+    eDEMO_DEFAULT
+} eDemoType;
 
 
 int qcloud_iot_explorer_demo(eDemoType eType);

@@ -685,7 +685,6 @@ int qcloud_iot_explorer_demo(eDemoType eType)
     while (IOT_Template_IsConnected(client) || rc == QCLOUD_ERR_MQTT_ATTEMPTING_RECONNECT
            || rc == QCLOUD_RET_MQTT_RECONNECTED || QCLOUD_RET_SUCCESS == rc) {
 
-#ifndef MULTITHREAD_ENABLED
         rc = IOT_Template_Yield(client, 200);
         if (rc == QCLOUD_ERR_MQTT_ATTEMPTING_RECONNECT) {
             HAL_SleepMs(1000);
@@ -694,7 +693,7 @@ int qcloud_iot_explorer_demo(eDemoType eType)
             Log_e("Exit loop due to error: %d", rc);
             break;
         }
-#endif
+
         /* handle control msg from server */
         if (sg_control_msg_arrived) {
             deal_down_stream_user_logic(client, &sg_ProductData);

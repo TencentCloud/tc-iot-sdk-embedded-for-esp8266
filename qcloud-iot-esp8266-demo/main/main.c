@@ -27,12 +27,12 @@
 
 #include "qcloud_iot_export.h"
 #include "qcloud_iot_demo.h"
-#include "qcloud_wifi_boarding.h"
+#include "qcloud_wifi_config.h"
 #include "board_ops.h"
 
 
 /* normal WiFi STA mode init and connection ops */
-#ifndef CONFIG_DEMO_WIFI_BOARDING
+#ifndef CONFIG_WIFI_CONFIG_ENABLED
 
 /* WiFi router SSID  */
 #define TEST_WIFI_SSID                 CONFIG_DEMO_WIFI_SSID
@@ -130,8 +130,8 @@ void setup_sntp(void )
 {
     sntp_setoperatingmode(SNTP_OPMODE_POLL);
 
-    // for set more sntp server, plz modify macro SNTP_MAX_SERVERS in sntp_opts.h file
-    // set sntp server after got ip address, you had better to adjust the sntp server to your area
+    // to set more sntp server, plz modify macro SNTP_MAX_SERVERS in sntp_opts.h file
+    // set sntp server after got ip address, you'd better adjust the sntp server to your area
     sntp_setservername(0, "time1.cloud.tencent.com");
     sntp_setservername(1, "cn.pool.ntp.org");
     sntp_setservername(2, "time-a.nist.gov");
@@ -162,18 +162,18 @@ void qcloud_demo_task(void* parm)
     bool wifi_connected = false;
     Log_i("qcloud_demo_task start");
 
-#if CONFIG_DEMO_WIFI_BOARDING
-    /* to use softAP WiFi boarding and device binding with Wechat mini program */
+#if CONFIG_WIFI_CONFIG_ENABLED
+    /* to use WiFi config and device binding with Wechat mini program */
     int ret = start_softAP("ESP8266-SAP", "12345678", 0);
     if (ret) {
-        Log_e("softAP start failed: %d", ret);
+        Log_e("start wifi config failed: %d", ret);
     } else {
-        /* max waiting: 120 * 5000ms */
-        int wait_cnt = 120;
+        /* max waiting: 150 * 2000ms */
+        int wait_cnt = 150;
         do {
-            Log_d("waiting for boarding result...");
-            HAL_SleepMs(5000);
-            wifi_connected = is_wifi_boarding_successful();
+            Log_d("waiting for wifi config result...");
+            HAL_SleepMs(2000);
+            wifi_connected = is_wifi_config_successful();
         } while (!wifi_connected && wait_cnt--);
     }
 #else

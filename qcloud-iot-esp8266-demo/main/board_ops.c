@@ -51,7 +51,7 @@ void board_init(void)
     gpio_config(&ioconfig);
 
     set_wifi_led_state(WIFI_LED_OFF);
-    set_wifi_led_state(RELAY_LED_ON);
+    set_relay_led_state(RELAY_LED_OFF);
 }
 
 

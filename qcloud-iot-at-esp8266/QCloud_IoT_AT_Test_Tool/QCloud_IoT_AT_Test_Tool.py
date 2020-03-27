@@ -1198,8 +1198,10 @@ class IoTHubATTest(IoTBaseATCmd):
             while True:
                 try:
                     recv_payload = self.hub_payload_queue.get(timeout=2 * self.cmd_timeout)
-                    print("RECV MQTT loop test msg:", recv_payload)
                     recv_timeout_cnt = 0
+                    if recv_payload == "{}":
+                        continue
+                    print("RECV MQTT loop test msg:", recv_payload)
                     if compare_json_string(recv_payload, loop_test_last_msg):
                         recv_cnt += 1
                         send_recv_time = round(time.time() - send_time, 2) * 100
@@ -1294,6 +1296,8 @@ class IoTHubATTest(IoTBaseATCmd):
             try:
                 recv_payload = self.hub_payload_queue.get(timeout=2 * self.cmd_timeout)
                 recv_timeout_cnt = 0
+                if recv_payload == "{}":
+                    continue
                 # compare two JSON string: {"action":"test","time":1234567890,"text":"abc"}
                 if compare_json_string(sent_payload, recv_payload):
                     print("Correct return MQTT msg:", recv_payload)
@@ -1372,7 +1376,7 @@ class IoTHubATTest(IoTBaseATCmd):
             self.log_record("##### 查询MQTT断开状态指令执行失败")
             cmd_err_cnt += 1
 
-        time.sleep(1)
+        time.sleep(5)
 
         if not self.mqtt_connect(keepalive=60):
             self.serial.output_record(self.report_file)
