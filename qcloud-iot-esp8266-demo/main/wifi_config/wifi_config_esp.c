@@ -173,7 +173,12 @@ int wifi_ap_init(const char *ssid, const char *psw, uint8_t ch)
     strcpy((char *)wifi_config.ap.password, psw);
     wifi_config.ap.ssid_len = strlen(ssid);
     wifi_config.ap.max_connection = 3;
-    wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    if(strlen(psw) >= 8) {
+        wifi_config.ap.authmode = WIFI_AUTH_WPA_WPA2_PSK;
+    }
+    else {
+    	wifi_config.ap.authmode = WIFI_AUTH_OPEN;
+    }
     wifi_config.ap.channel = (uint8_t)ch;
 
     rc = esp_wifi_set_mode(WIFI_MODE_AP);
