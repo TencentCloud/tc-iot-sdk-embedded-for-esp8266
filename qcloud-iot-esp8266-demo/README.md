@@ -8,6 +8,8 @@
 如果编译选择了配网模式和IoT Explorer demo（默认选项），则程序正常启动之后，会先进入配网模式（蓝色LED灯处于闪烁状态），可使用腾讯连连小程序进行配网，成功之后可以用小程序控制开发板上面绿色LED的亮灭。
 
 ### 1. 获取 ESP8266_RTOS_SDK 以及编译器
+本项目基于**Linux(ubuntu)**环境进行开发，关于ESP8266开发的基础知识，请参考其 [开发指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/linux-setup.html)
+
 在当前目录下获取ESP8266 RTOS SDK 3.1
 ```
 git clone --single-branch -b release/v3.1 https://github.com/espressif/ESP8266_RTOS_SDK.git
@@ -20,13 +22,13 @@ git clone --single-branch -b release/v3.1 https://github.com/espressif/ESP8266_R
 
 ESP8266_RTOS_SDK编译需要python及pip，并且需要安装以下python库及软件
 ```
+sudo apt-get install git wget flex bison gperf python python-pip python-setuptools cmake ninja-build ccache libffi-dev libssl-dev
 pip install pyserial
 pip install xlrd
-sudo apt install flex bison gperf
 ```
 
 ### 2.从腾讯云物联 C-SDK 中抽取相关代码
-项目默认包含了一个基于腾讯云IoT Explorer C-SDK v3.1.0的代码。如不需要更新可直接跳到第四步
+项目默认包含了一个基于腾讯云IoT Explorer C-SDK v3.1.1的代码。**如不需要更新可直接跳到第四步**
 
 如果有需要更新SDK，可根据使用的平台按下面步骤下载更新：
 ##### 从GitHub下载C-SDK代码
@@ -149,5 +151,5 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 烧写成功之后可以重启开发板运行程序
 
 ### 6. WiFi配网说明
-工程里面包含了WiFi配网及设备绑定的代码，关于softAP配网协议及接口使用请看 qcloud-iot-esp-wifi/docs/WiFi设备softAP配网
+工程里面包含了WiFi配网及设备绑定的代码，关于softAP配网协议及接口使用请看 [WiFi设备softAP配网](https://github.com/tencentyun/qcloud-iot-esp-wifi/blob/master/docs/WiFi%E8%AE%BE%E5%A4%87softAP%E9%85%8D%E7%BD%91v2.0.md)
 
