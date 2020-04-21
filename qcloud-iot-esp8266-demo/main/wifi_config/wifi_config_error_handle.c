@@ -171,7 +171,13 @@ int handle_saved_error_log(void)
 
     size_t log_size = log_cnt * sizeof(err_log_t);
     err_log_t *log_src = (err_log_t *)HAL_Malloc(log_size);
+    if (log_src == NULL) {
+        Log_e("malloc failed");
+        return -1;
+    }
+
     if (load_err_log(log_src, log_size)) {
+        HAL_Free(log_src);
         Log_e("load error log failed");
         return -1;
     }
@@ -189,11 +195,13 @@ int handle_saved_error_log(void)
         int ret = xQueueGenericSend(g_err_log_queue, &log_src[i], 0, queueSEND_TO_BACK);
         if (ret != pdPASS) {
             Log_e("xQueueGenericSend failed: %d", ret);
+            HAL_Free(log_src);
             return ERR_OS_QUEUE;
         }
         i++;
     } while (i < log_cnt);
 
+    HAL_Free(log_src);
     return 0;
 }
 
@@ -342,9 +350,11 @@ int save_error_log(void)
     log_src->log_cnt = j;
     log_size = 2 * sizeof(uint32_t) + log_src->log_cnt * sizeof(err_log_t);
     if (save_err_log(log_src, log_size)) {
+        HAL_Free(log_src);
         Log_e("save error log to flash failed");
         return -1;
     }
+    HAL_Free(log_src);
 #endif
     return 0;
 }
