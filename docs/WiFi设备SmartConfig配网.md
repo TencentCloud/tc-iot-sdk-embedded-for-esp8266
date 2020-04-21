@@ -84,3 +84,4 @@ AT+TCSTARTSMART
 - wifi_config_esp.c：设备硬件WiFi操作相关接口实现，依赖于ESP8266 RTOS，当使用其他硬件平台时，需要进行移植适配
 - wifi_config_error_handle.c：设备错误日志处理，主要依赖于FreeRTOS
 
+注意如果将SmartConfig移植到不同的芯片平台，需要确保平台支持ESP-TOUCH配网协议。同时由于小程序框架限制，小程序通过UDP广播/多播发送ESP-TOUCH协议报文时，会往报文body填入一个固定的IP地址，设备端在回复结果时不应该依赖于该地址，而应当以UDP报文header的源IP地址为准。
