@@ -9,7 +9,7 @@ SmartConfig方式配网的基本原理是先让设备进入WiFi混杂模式（pr
 SmartConfig方式配网，在编码方式和报文选择上面，每个厂商有自己的协议，对于ESP8266，采用的是乐鑫[ESP-TOUCH协议](https://www.espressif.com/zh-hans/products/software/esp-touch/overview)。基于该协议，设备端在连接WiFi路由器成功之后，会告知手机端自己的IP地址，这个时候手机端可以通过数据通道比如TCP/UDP通讯将后台提供的配网token发送给设备，并由设备转发至物联网后台，依据token可以进行设备绑定。
 
 目前腾讯连连小程序已经支持采用ESP-TOUCH协议进行SmartConfig配网，下面是SmartConfig方式配网及设备绑定的示例流程图：
-![](https://main.qcloudimg.com/raw/755866e30f9f9db18363f32b9c0171dd.jpg)
+![](https://main.qcloudimg.com/raw/60a5a3f9973135430a592bbeb5d591b6.jpg)
 
 ## SmartConfig配网设备端与腾讯连连小程序及后台交互的数据协议
 1. 腾讯连连小程序进入配网模式后，会从物联网开发平台服务获取到当次配网的token。
