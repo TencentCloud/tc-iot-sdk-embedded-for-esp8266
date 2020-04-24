@@ -237,6 +237,11 @@ int send_token_wait_reply(void *client, DeviceInfo *dev_info, TokenHandleData *a
         Log_i("wait for token data...");
     }
 
+    if (!sg_token_received) {
+        Log_e("Wait for token data timeout");
+        return QCLOUD_ERR_INVAL;
+    }
+
     wait_cnt = 3;
 publish_token:
     ret = _publish_token_msg(client, dev_info, sg_token_str);
@@ -384,7 +389,9 @@ int mqtt_send_token(void)
     IOT_MQTT_Destroy(&client);
 
     // sleep 5 seconds to avoid frequent MQTT connection
-    HAL_SleepMs(5000);
+    if (ret == 0)
+        HAL_SleepMs(5000);
+
     return ret;
 }
 //============================ MQTT communication functions end ===========================//
