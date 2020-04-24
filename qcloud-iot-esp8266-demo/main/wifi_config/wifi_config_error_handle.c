@@ -229,8 +229,6 @@ int init_error_log_queue(void)
 
 int push_error_log(uint16_t err_id, int32_t err_sub_id)
 {
-    Log_e("error happen, err_id: %u err_sub_id: %d");
-
     sg_error_happen = true;
 
 #ifdef WIFI_ERR_LOG_POST
@@ -250,6 +248,8 @@ int push_error_log(uint16_t err_id, int32_t err_sub_id)
         Log_e("xQueueGenericSend failed: %d", ret);
         return ERR_OS_QUEUE;
     }
+#else
+    Log_e("error happen, err_id: %u err_sub_id: %d", err_id, err_sub_id);
 #endif
     return 0;
 }
