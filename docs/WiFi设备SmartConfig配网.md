@@ -8,11 +8,12 @@ WiFi配网指的是，由外部向WiFi设备提供SSID和密码（PSW），让Wi
 SmartConfig方式配网的基本原理是先让设备进入WiFi混杂模式（promiscuous mode）以监听捕获周围的WiFi报文，由于设备还没有联网，而WiFi网络的数据帧是通过加密的，设备无法知道payload的内容，但是可以知道报文的某些特征数据比如每个报文的长度，同时对于某些数据帧比如UDP的广播包或多播包，其报文的帧头结构比较固定，可以很容易的识别出来。这个时候在手机app或者小程序测，就可以通过发送UDP的广播包或者多播包，并利用报文的特征比如长度变化来进行编码，将目标WiFi路由器的SSID/PSW字符以约定的编码方式发送出去，设备端在捕获到UDP报文后按约定的方式进行解码就可以得到目标WiFi路由器的相关信息并进行联网。
 SmartConfig方式配网，在编码方式和报文选择上面，每个厂商有自己的协议，对于ESP8266，采用的是乐鑫[ESP-TOUCH协议](https://www.espressif.com/zh-hans/products/software/esp-touch/overview)。基于该协议，设备端在连接WiFi路由器成功之后，会告知手机端自己的IP地址，这个时候手机端可以通过数据通道比如TCP/UDP通讯将后台提供的配网token发送给设备，并由设备转发至物联网后台，依据token可以进行设备绑定。
 
-目前腾讯连连小程序已经支持采用ESP-TOUCH协议进行SmartConfig配网，下面是SmartConfig方式配网及设备绑定的示例流程图：
+目前腾讯连连小程序已经支持采用ESP-TOUCH协议进行SmartConfig配网，并提供了相应的[小程序SDK](https://github.com/tencentyun/qcloud-iotexplorer-appdev-miniprogram-sdk).
+下面是SmartConfig方式配网及设备绑定的示例流程图：
 ![](https://main.qcloudimg.com/raw/60a5a3f9973135430a592bbeb5d591b6.jpg)
 
 ## SmartConfig配网设备端与腾讯连连小程序及后台交互的数据协议
-1. 腾讯连连小程序进入配网模式后，会从物联网开发平台服务获取到当次配网的token。
+1. 腾讯连连小程序进入配网模式后，会从物联网开发平台服务获取到当次配网的token，小程序相关操作可以参考 [生成Wi-Fi设备配网Token](https://cloud.tencent.com/document/product/1081/44044)
 
 2. 使WiFi设备进入SmartConfig配网模式，看到设备有指示灯在快闪，则说明进入配网模式成功。
   
@@ -31,7 +32,7 @@ SmartConfig方式配网，在编码方式和报文选择上面，每个厂商有
 6. 如果2秒之内没有收到设备回复，则重复步骤5，UDP客户端重复发送配网token。
    如果重复发送5次都没有收到回复，则认为配网失败，WiFi设备有异常。
    
-7. 如果步骤5收到设备回复，则说明设备端已经收到token，并准备上报token。这个时候小程序会开始通过token轮询物联网后台来确认配网及设备绑定是否成功。
+7. 如果步骤5收到设备回复，则说明设备端已经收到token，并准备上报token。这个时候小程序会开始通过token轮询物联网后台来确认配网及设备绑定是否成功。小程序相关操作可以参考 [查询配网Token状态](https://cloud.tencent.com/document/product/1081/44045)
 
 8. 设备端在成功连接WiFi路由器之后，需要通过MQTT连接物联网后台，并将小程序发送来的配网token通过下面MQTT报文上报给后台服务：
 ```
