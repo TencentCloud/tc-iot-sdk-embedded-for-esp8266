@@ -9,11 +9,12 @@ WiFi配网指的是，由外部向WiFi设备提供SSID和密码（PSW），让Wi
 #### SoftAP配网及设备绑定
 SoftAP方式配网的基本原理是让设备通过softAP方式创建一个WiFi热点，手机连接到该设备热点，再通过数据通道比如TCP/UDP通讯将目标WiFi路由器的SSID/PSW告诉设备，设备获取到之后就可以连接目标WiFi路由器从而连接互联网。同时，为了对设备进行绑定，手机app可以利用该TCP/UDP数据通道将后台提供的配网token发送给设备，并由设备转发至物联网后台，依据token可以进行设备绑定。
 
+腾讯连连小程序已经支持softAP配网，并提供了相应的[小程序SDK](https://github.com/tencentyun/qcloud-iotexplorer-appdev-miniprogram-sdk).
 下面是基于token的softAP方式配网及设备绑定的示例流程图：
 ![](https://main.qcloudimg.com/raw/a146b79d88299a59507d81eaad99137c.jpg)
 
 ## SoftAP配网设备端与腾讯连连小程序及后台交互的数据协议
-1. 腾讯连连小程序进入配网模式后，会从物联网开发平台服务获取到当次配网的token。
+1. 腾讯连连小程序进入配网模式后，会从物联网开发平台服务获取到当次配网的token。小程序相关操作可以参考 [生成Wi-Fi设备配网Token](https://cloud.tencent.com/document/product/1081/44044)
 
 2. 使WiFi设备进入softAP配网模式，看到设备有指示灯在快闪，则说明进入配网模式成功。
     
@@ -32,7 +33,7 @@ SoftAP方式配网的基本原理是让设备通过softAP方式创建一个WiFi�
 6. 如果2秒之内没有收到设备回复，则重复步骤5，UDP客户端重复发送目标WiFi路由器的SSID/PSW及配网token。
    如果重复发送5次都没有收到回复，则认为配网失败，WiFi设备有异常。
     
-7. 如果步骤5收到设备回复，则说明设备端已经收到WiFi路由器的SSID/PSW及token，正在连接WiFi路由器，并上报token。这个时候小程序会提示手机也去连接WiFi路由器，并通过token轮询物联网后台来确认配网及设备绑定是否成功。
+7. 如果步骤5收到设备回复，则说明设备端已经收到WiFi路由器的SSID/PSW及token，正在连接WiFi路由器，并上报token。这个时候小程序会提示手机也去连接WiFi路由器，并通过token轮询物联网后台来确认配网及设备绑定是否成功。小程序相关操作可以参考 [查询配网Token状态](https://cloud.tencent.com/document/product/1081/44045)
 
 8. 设备端在成功连接WiFi路由器之后，需要通过MQTT连接物联网后台，并将小程序发送来的配网token通过下面MQTT报文上报给后台服务：
 ```
