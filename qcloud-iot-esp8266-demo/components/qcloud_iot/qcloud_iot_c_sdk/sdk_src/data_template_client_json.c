@@ -341,6 +341,12 @@ bool parse_template_get_control(char *pJsonDoc, char **control)
     return *control == NULL ? false : true;
 }
 
+bool parse_template_get_reported(char *pJsonDoc, char **control)
+{
+    *control = LITE_json_value_of(GET_REPORTED_PARA, pJsonDoc);
+    return *control == NULL ? false : true;
+}
+
 bool parse_template_cmd_control(char *pJsonDoc, char **control)
 {
     *control = LITE_json_value_of(CMD_CONTROL_PARA, pJsonDoc);

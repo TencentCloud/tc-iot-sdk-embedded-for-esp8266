@@ -451,7 +451,8 @@ static void _handle_template_reply_callback(Qcloud_IoT_Template *pTemplate, List
 
             if (strcmp(pType, GET_STATUS_REPLY) == 0 && status == ACK_ACCEPTED) {
                 char* control_str = NULL;
-                if (parse_template_get_control(sg_template_cloud_rcv_buf, &control_str)) {
+
+                if (parse_template_get_reported(sg_template_cloud_rcv_buf, &control_str)) {
                     Log_d("control data from get_status_reply");
                     _set_control_clientToken(pClientToken);
                     _handle_control(pTemplate, control_str);

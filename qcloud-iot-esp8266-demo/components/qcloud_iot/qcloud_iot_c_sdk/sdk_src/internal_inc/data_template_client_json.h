@@ -65,6 +65,7 @@ extern "C" {
 #define CMD_CONTROL_PARA			"params"
 
 
+#define GET_REPORTED_PARA			"data.reported"
 /**
  * @brief define type of request parameters
  */
@@ -275,6 +276,8 @@ bool parse_template_get_control(char *pJsonDoc, char **control);
  * @return				 true for success
  */ 
 bool parse_template_cmd_control(char *pJsonDoc, char **control);
+
+bool parse_template_get_reported(char *pJsonDoc, char **control);
 
 #ifdef __cplusplus
 }
