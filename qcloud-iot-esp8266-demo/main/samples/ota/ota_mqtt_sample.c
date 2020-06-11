@@ -297,7 +297,7 @@ int qcloud_iot_explorer_demo(eDemoType eType)
     FILE *fp = NULL;
     uint32_t offset = 0;
 
-    if (eDEMO_RAW_DATA != eType) {
+    if (eDEMO_OTA != eType) {
         Log_e("Demo config (%d) illegal, please check", eType);
         return QCLOUD_ERR_FAILURE;
     }
@@ -410,7 +410,7 @@ int qcloud_iot_explorer_demo(eDemoType eType)
                     }
                     fflush(fp);
 #else
-                    Log_e("%d bytes receved", len);
+                    Log_d("%d bytes receved", len);
 #endif
                 } else if (len < 0) {
                     Log_e("download fail rc=%d", len);
