@@ -10,13 +10,10 @@
 #define DEV_DYN_REG_ENABLED
 /* #undef LOG_UPLOAD */
 /* #undef IOT_DEBUG */
-/* #undef DEBUG_DEV_INFO_USED */
+#define DEBUG_DEV_INFO_USED
 /* #undef AT_TCP_ENABLED */
 /* #undef AT_UART_RECV_IRQ */
 /* #undef AT_OS_USED */
 /* #undef AT_DEBUG */
 //#define OTA_USE_HTTPS
-
-#ifdef GATEWAY_ENABLED
 #define MULTITHREAD_ENABLED
-#endif

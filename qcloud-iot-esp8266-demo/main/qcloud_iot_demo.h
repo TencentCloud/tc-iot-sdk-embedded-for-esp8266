@@ -21,9 +21,8 @@ extern "C" {
 typedef enum {
     eDEMO_SMART_LIGHT = 0,
     eDEMO_GATEWAY     = 1,
-    eDEMO_OTA         = 2,
-    eDEMO_RAW_DATA    = 3,
-    eDEMO_MQTT        = 4,
+    eDEMO_RAW_DATA    = 2,
+    eDEMO_MQTT        = 3,
     eDEMO_DEFAULT
 } eDemoType;
 

@@ -18,8 +18,6 @@ choice DEMO_EXAMPLE_SELECT
         bool "Smart light example"
     config GATEWAY_ENABLED
         bool "Gateway example"
-    config OTA_ENABLED
-        bool "OTA example"
     config RAW_DATA_ENABLED
         bool "Raw data example"
 	config MQTT_ENABLED
@@ -30,9 +28,8 @@ config DEMO_EXAMPLE_SELECT
     int
     default 0 if SMART_LIGHT_ENABLED
     default 1 if GATEWAY_ENABLED
-    default 2 if OTA_ENABLED
-    default 3 if RAW_DATA_ENABLED
-    default 4 if MQTT_ENABLED
+    default 2 if RAW_DATA_ENABLED
+    default 3 if MQTT_ENABLED
 
 
 config WIFI_CONFIG_ENABLED
@@ -54,5 +51,11 @@ config DEMO_WIFI_PASSWORD
     help
         wifi password       
 
+config QCLOUD_OTA_ESP_ENABLED
+    depends on PARTITION_TABLE_TWO_OTA
+	bool "To enable OTA support on ESP or not"
+    default y
+    help
+        To enable OTA support on ESP or not. Required OTA partition table
 
 endmenu

@@ -204,21 +204,15 @@ void qcloud_demo_task(void* parm)
 
 void app_main()
 {
-    int stack_size;
-
     ESP_ERROR_CHECK(nvs_flash_init());
 
     //init log level
     IOT_Log_Set_Level(eLOG_DEBUG);
+    Log_i("FW built time %s %s", __DATE__, __TIME__);
+        
     board_init();
 
-#ifdef CONFIG_QCLOUD_IOT_EXPLORER_ENABLED
-    stack_size = (eDEMO_GATEWAY == CONFIG_DEMO_EXAMPLE_SELECT) ? 8196 : 16384; // OTA sample need a large stack while GateWay sample need save stack for sub-thread
-#else
-    stack_size = 16384;
-#endif
-
-    xTaskCreate(qcloud_demo_task, "qcloud_demo_task", stack_size, NULL, 3, NULL);
+    xTaskCreate(qcloud_demo_task, "qcloud_demo_task", 8196, NULL, 4, NULL);
 
 }
 

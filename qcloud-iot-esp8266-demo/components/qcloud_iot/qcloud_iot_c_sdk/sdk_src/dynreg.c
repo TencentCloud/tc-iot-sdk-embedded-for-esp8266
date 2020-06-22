@@ -1,20 +1,25 @@
 /*
- * Tencent is pleased to support the open source community by making IoT Hub available.
+ * Tencent is pleased to support the open source community by making IoT Hub
+ available.
  * Copyright (C) 2016 THL A29 Limited, a Tencent company. All rights reserved.
 
- * Licensed under the MIT License (the "License"); you may not use this file except in
+ * Licensed under the MIT License (the "License"); you may not use this file
+ except in
  * compliance with the License. You may obtain a copy of the License at
  * http://opensource.org/licenses/MIT
 
- * Unless required by applicable law or agreed to in writing, software distributed under the License is
- * distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
- * either express or implied. See the License for the specific language governing permissions and
+ * Unless required by applicable law or agreed to in writing, software
+ distributed under the License is
+ * distributed on an "AS IS" basis, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND,
+ * either express or implied. See the License for the specific language
+ governing permissions and
  * limitations under the License.
  *
  */
 
-#include <stdint.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -25,70 +30,63 @@ extern "C" {
 
 #include "mbedtls/aes.h"
 
+#include "lite-utils.h"
 #include "qcloud_iot_ca.h"
 #include "qcloud_iot_device.h"
-#include "qcloud_iot_import.h"
 #include "qcloud_iot_export.h"
-#include "utils_httpc.h"
-#include "utils_hmac.h"
-#include "lite-utils.h"
+#include "qcloud_iot_import.h"
+#include "qcloud_iot_common.h"
 #include "utils_base64.h"
+#include "utils_hmac.h"
+#include "utils_httpc.h"
 
 #ifdef DEV_DYN_REG_ENABLED
 
-/* 设备动态注册domain*/
-#define  DYN_REG_SERVER_URL         "gateway.tencentdevices.com"
-
-#define  DYN_REG_SERVER_PORT        80
-#define  DYN_REG_SERVER_PORT_TLS    443
-#define  REG_URL_MAX_LEN            (128)
-#define  DYN_REG_SIGN_LEN           (64)
-#define  DYN_BUFF_DATA_MORE         (10)
-#define  BASE64_ENCODE_OUT_LEN(x)   (((x+3)*4)/3)
-#define  DYN_REG_RES_HTTP_TIMEOUT_MS  (5000)
-#define  FILE_PATH_MAX_LEN          (128)
+#define REG_URL_MAX_LEN             (128)
+#define DYN_REG_SIGN_LEN            (64)
+#define DYN_BUFF_DATA_MORE          (10)
+#define BASE64_ENCODE_OUT_LEN(x)    (((x + 3) * 4) / 3)
+#define DYN_REG_RES_HTTP_TIMEOUT_MS (5000)
 
 #ifdef AUTH_MODE_CERT
-#define  DYN_RESPONSE_BUFF_LEN      (5*1024)
-#define  DECODE_BUFF_LEN            (5*1024)
+#define DYN_RESPONSE_BUFF_LEN (5 * 1024)
+#define DECODE_BUFF_LEN       (5 * 1024)
 #else
-#define  DYN_RESPONSE_BUFF_LEN      (256)
-#define  DECODE_BUFF_LEN            (256)
+#define DYN_RESPONSE_BUFF_LEN (256)
+#define DECODE_BUFF_LEN       (256)
 #endif
 
-#define     CODE_RESAULT    "code"
-#define     ENCRYPT_TYPE    "encryptionType"
-#define     PSK_DATA        "psk"
-#define     CERT_DATA       "clientCert"
-#define     KEY_DATA        "clientKey"
+#define CODE_RESAULT "code"
+#define ENCRYPT_TYPE "encryptionType"
+#define PSK_DATA     "psk"
+#define CERT_DATA    "clientCert"
+#define KEY_DATA     "clientKey"
 
-#define UTILS_AES_ENCRYPT     1 /**< AES encryption. */
-#define UTILS_AES_DECRYPT     0 /**< AES decryption. */
-#define UTILS_AES_BLOCK_LEN     16
-#define AES_KEY_BITS_128        128
-
+#define UTILS_AES_ENCRYPT   1 /**< AES encryption. */
+#define UTILS_AES_DECRYPT   0 /**< AES decryption. */
+#define UTILS_AES_BLOCK_LEN 16
+#define AES_KEY_BITS_128    128
 
 typedef enum {
     eCERT_TYPE = 1,
-    ePSK_TYPE = 2,
+    ePSK_TYPE  = 2,
 } eAuthType;
-
 
 /*Global value*/
 static unsigned int _seed = 1;
 
 /* Knuth's TAOCP section 3.6 */
-#define     M   ((1U<<31) -1)
-#define     A   48271
-#define     Q   44488       // M/A
-#define     R   3399        // M%A; R < Q !!!
+#define M ((1U << 31) - 1)
+#define A 48271
+#define Q 44488  // M/A
+#define R 3399   // M%A; R < Q !!!
 
-int rand_r(unsigned int* seed)
+int rand_r(unsigned int *seed)
 {
     int32_t X;
 
     X = *seed;
-    X = A * (X % Q) - R * (int32_t) (X / Q);
+    X = A * (X % Q) - R * (int32_t)(X / Q);
     if (X < 0)
         X += M;
 
@@ -108,8 +106,8 @@ void srand_d(unsigned int i)
 
 static int _get_json_resault_code(char *json)
 {
-    int resault = -1;
-    char *v = LITE_json_value_of(CODE_RESAULT, json);
+    int   resault = -1;
+    char *v       = LITE_json_value_of(CODE_RESAULT, json);
 
     if (v == NULL) {
         Log_e("Invalid json content: %s", json);
@@ -129,8 +127,8 @@ static int _get_json_resault_code(char *json)
 
 static int _get_json_encry_type(char *json)
 {
-    int type = -1;
-    char *v = LITE_json_value_of(ENCRYPT_TYPE, json);
+    int   type = -1;
+    char *v    = LITE_json_value_of(ENCRYPT_TYPE, json);
 
     if (v == NULL) {
         Log_e("Get encrypt type fail, %s", json);
@@ -150,9 +148,8 @@ static int _get_json_encry_type(char *json)
 
 #ifndef AUTH_MODE_CERT
 
-static char * _get_json_psk(char *json)
+static char *_get_json_psk(char *json)
 {
-
     char *psk = LITE_json_value_of(PSK_DATA, json);
 
     if (psk == NULL) {
@@ -163,9 +160,8 @@ static char * _get_json_psk(char *json)
 }
 
 #else
-static char * _get_json_cert_data(char *json)
+static char *_get_json_cert_data(char *json)
 {
-
     char *cert = LITE_json_value_of(CERT_DATA, json);
 
     if (cert == NULL) {
@@ -175,9 +171,8 @@ static char * _get_json_cert_data(char *json)
     return cert;
 }
 
-static char * _get_json_key_data(char *json)
+static char *_get_json_key_data(char *json)
 {
-
     char *key = LITE_json_value_of(KEY_DATA, json);
 
     if (key == NULL) {
@@ -194,25 +189,23 @@ static void _deal_transfer(char *data, uint32_t dataLen)
 
     for (i = 0; i < dataLen; i++) {
         if ((data[i] == '\\') && (data[i + 1] == 'n')) {
-            data[i] = ' ';
+            data[i]     = ' ';
             data[i + 1] = '\n';
         }
     }
-
 }
 
-static int _cert_file_save(const char *fileName, char *data,    uint32_t dataLen)
+static int _cert_file_save(const char *fileName, char *data, uint32_t dataLen)
 {
-    FILE *fp;
-    char filePath[FILE_PATH_MAX_LEN];
+    FILE *   fp;
+    char     filePath[FILE_PATH_MAX_LEN];
     uint32_t len;
-    int Ret = QCLOUD_ERR_FAILURE;
-
+    int      Ret = QCLOUD_ERR_FAILURE;
 
     memset(filePath, 0, FILE_PATH_MAX_LEN);
     HAL_Snprintf(filePath, FILE_PATH_MAX_LEN, "./certs/%s", fileName);
 
-    if ( ( fp = fopen(filePath, "w+" ) ) == NULL ) {
+    if ((fp = fopen(filePath, "w+")) == NULL) {
         Log_e("fail to open file %s", fileName);
         goto exit;
     }
@@ -233,19 +226,18 @@ exit:
 
 #endif
 
-
-int utils_aes_cbc(uint8_t *pInData, uint32_t datalen, uint8_t *pOutData, uint32_t outBuffLen,
-                  uint8_t mode, uint8_t *pKey, uint16_t keybits, uint8_t *iv)
+int utils_aes_cbc(uint8_t *pInData, uint32_t datalen, uint8_t *pOutData, uint32_t outBuffLen, uint8_t mode,
+                  uint8_t *pKey, uint16_t keybits, uint8_t *iv)
 {
-    int ret = QCLOUD_RET_SUCCESS;
-    int padlen;
+    int                 ret = QCLOUD_RET_SUCCESS;
+    int                 padlen;
     mbedtls_aes_context ctx;
 
-    mbedtls_aes_init( &ctx );
+    mbedtls_aes_init(&ctx);
 
     if (UTILS_AES_ENCRYPT == mode) {
-        ret = mbedtls_aes_setkey_enc( &ctx, pKey, keybits);
-        if ( ret != 0 ) {
+        ret = mbedtls_aes_setkey_enc(&ctx, pKey, keybits);
+        if (ret != 0) {
             Log_e("Set encrypt key err, ret:%d", ret);
             ret = QCLOUD_ERR_FAILURE;
             goto exit;
@@ -253,7 +245,9 @@ int utils_aes_cbc(uint8_t *pInData, uint32_t datalen, uint8_t *pOutData, uint32_
 
         /*zero padding*/
         if (outBuffLen < (datalen + UTILS_AES_BLOCK_LEN)) {
-            Log_e("Output buffer should not less than datalen+UTILS_AES_BLOCK_LEN for padding");
+            Log_e(
+                "Output buffer should not less than datalen+UTILS_AES_BLOCK_LEN "
+                "for padding");
             ret = QCLOUD_ERR_FAILURE;
             goto exit;
         }
@@ -261,20 +255,20 @@ int utils_aes_cbc(uint8_t *pInData, uint32_t datalen, uint8_t *pOutData, uint32_
         if (datalen % UTILS_AES_BLOCK_LEN) {
             padlen = UTILS_AES_BLOCK_LEN - datalen % UTILS_AES_BLOCK_LEN;
             memcpy(pOutData, pInData, datalen);
-            memset(pOutData + datalen, '\0', padlen);   /*zero-padding*/
+            memset(pOutData + datalen, '\0', padlen); /*zero-padding*/
             datalen += padlen;
         }
     } else {
-        ret = mbedtls_aes_setkey_dec( &ctx, pKey, keybits);
-        if ( ret != 0 ) {
+        ret = mbedtls_aes_setkey_dec(&ctx, pKey, keybits);
+        if (ret != 0) {
             Log_e("Set decrypt key err, ret:%d", ret);
             ret = QCLOUD_ERR_FAILURE;
             goto exit;
         }
     }
 
-    ret = mbedtls_aes_crypt_cbc( &ctx, mode, datalen, iv, pInData, pOutData);
-    if ( ret != 0 ) {
+    ret = mbedtls_aes_crypt_cbc(&ctx, mode, datalen, iv, pInData, pOutData);
+    if (ret != 0) {
         Log_e("crypt err, ret:%d", ret);
         ret = QCLOUD_ERR_FAILURE;
         goto exit;
@@ -283,23 +277,22 @@ int utils_aes_cbc(uint8_t *pInData, uint32_t datalen, uint8_t *pOutData, uint32_
     }
 
 exit:
-    mbedtls_aes_free( &ctx );
+    mbedtls_aes_free(&ctx);
 
     return ret;
 }
 
-
 static int _parse_devinfo(char *jdoc, DeviceInfo *pDevInfo)
 {
-    int ret = 0;
-    size_t len;
-    int datalen;
-    int enType;
-    unsigned int keybits;
-    char key[UTILS_AES_BLOCK_LEN + 1];
-    char decodeBuff[DECODE_BUFF_LEN] = {0};
+    int           ret = 0;
+    size_t        len;
+    int           datalen;
+    int           enType;
+    unsigned int  keybits;
+    char          key[UTILS_AES_BLOCK_LEN + 1];
+    char          decodeBuff[DECODE_BUFF_LEN] = {0};
     unsigned char iv[16];
-    char *payload = NULL;
+    char *        payload = NULL;
 
 #ifdef AUTH_MODE_CERT
     char *clientCert;
@@ -323,20 +316,21 @@ static int _parse_devinfo(char *jdoc, DeviceInfo *pDevInfo)
         goto exit;
     }
 
-    ret = qcloud_iot_utils_base64decode((uint8_t *)decodeBuff, sizeof(decodeBuff), &len, (uint8_t *)payload, strlen(payload));
+    ret = qcloud_iot_utils_base64decode((uint8_t *)decodeBuff, sizeof(decodeBuff), &len, (uint8_t *)payload,
+                                        strlen(payload));
     if (ret != QCLOUD_RET_SUCCESS) {
         Log_e("Response decode err, response:%s", payload);
         ret = QCLOUD_ERR_FAILURE;
         goto exit;
     }
 
-    datalen =  len + (UTILS_AES_BLOCK_LEN - len % UTILS_AES_BLOCK_LEN);
+    datalen = len + (UTILS_AES_BLOCK_LEN - len % UTILS_AES_BLOCK_LEN);
     keybits = AES_KEY_BITS_128;
     memset(key, 0, UTILS_AES_BLOCK_LEN);
     strncpy(key, pDevInfo->product_secret, UTILS_AES_BLOCK_LEN);
-    memset( iv, '0', UTILS_AES_BLOCK_LEN);
-    ret = utils_aes_cbc((uint8_t *)decodeBuff, datalen, (uint8_t *)decodeBuff,
-                        DECODE_BUFF_LEN, UTILS_AES_DECRYPT, (uint8_t *)key, keybits, iv);
+    memset(iv, '0', UTILS_AES_BLOCK_LEN);
+    ret = utils_aes_cbc((uint8_t *)decodeBuff, datalen, (uint8_t *)decodeBuff, DECODE_BUFF_LEN, UTILS_AES_DECRYPT,
+                        (uint8_t *)key, keybits, iv);
     if (QCLOUD_RET_SUCCESS != ret) {
         Log_e("data decrypt err, ret:%d", ret);
         goto exit;
@@ -359,8 +353,9 @@ static int _parse_devinfo(char *jdoc, DeviceInfo *pDevInfo)
     clientCert = _get_json_cert_data(decodeBuff);
     if (NULL != clientCert) {
         memset(pDevInfo->device_cert_file_name, 0, MAX_SIZE_OF_DEVICE_CERT_FILE_NAME);
-        HAL_Snprintf(pDevInfo->device_cert_file_name, MAX_SIZE_OF_DEVICE_CERT_FILE_NAME, "%s_cert.crt", pDevInfo->device_name);
-        if (QCLOUD_RET_SUCCESS != _cert_file_save(pDevInfo->device_cert_file_name, clientCert,   strlen(clientCert))) {
+        HAL_Snprintf(pDevInfo->device_cert_file_name, MAX_SIZE_OF_DEVICE_CERT_FILE_NAME, "%s_cert.crt",
+                     pDevInfo->device_name);
+        if (QCLOUD_RET_SUCCESS != _cert_file_save(pDevInfo->device_cert_file_name, clientCert, strlen(clientCert))) {
             Log_e("save %s file fail", pDevInfo->device_cert_file_name);
             ret = QCLOUD_ERR_FAILURE;
         }
@@ -375,7 +370,8 @@ static int _parse_devinfo(char *jdoc, DeviceInfo *pDevInfo)
     clientKey = _get_json_key_data(decodeBuff);
     if (NULL != clientKey) {
         memset(pDevInfo->device_key_file_name, 0, MAX_SIZE_OF_DEVICE_KEY_FILE_NAME);
-        HAL_Snprintf(pDevInfo->device_key_file_name, MAX_SIZE_OF_DEVICE_KEY_FILE_NAME, "%s_private.key", pDevInfo->device_name);
+        HAL_Snprintf(pDevInfo->device_key_file_name, MAX_SIZE_OF_DEVICE_KEY_FILE_NAME, "%s_private.key",
+                     pDevInfo->device_name);
         if (QCLOUD_RET_SUCCESS != _cert_file_save(pDevInfo->device_key_file_name, clientKey, strlen(clientKey))) {
             Log_e("save %s file fail", pDevInfo->device_key_file_name);
             ret = QCLOUD_ERR_FAILURE;
@@ -405,14 +401,13 @@ static int _parse_devinfo(char *jdoc, DeviceInfo *pDevInfo)
             pDevInfo->device_secret[MAX_SIZE_OF_DEVICE_SECRET] = '\0';
         }
         HAL_Free(psk);
-        //Just for test,release should be deleted
-        //Log_d("Get PSK: %s", pDevInfo->device_secret);
+        // Just for test,release should be deleted
+        // Log_d("Get PSK: %s", pDevInfo->device_secret);
     } else {
         Log_e("Get psk data fail");
         ret = QCLOUD_ERR_FAILURE;
     }
 #endif
-
 
 exit:
 
@@ -425,20 +420,20 @@ exit:
 
 static int _post_reg_request_by_http(char *request_buf, DeviceInfo *pDevInfo)
 {
-    int Ret = 0;
-    HTTPClient       http_client;            /* http client */
-    HTTPClientData   http_data;              /* http client data */
+    int            Ret = 0;
+    HTTPClient     http_client; /* http client */
+    HTTPClientData http_data;   /* http client data */
 
-    const char       *url_format = "%s://%s/register/dev";
-    char             url[REG_URL_MAX_LEN] = {0};
-    int              port;
-    const char       *ca_crt = NULL;
-    char             respbuff[DYN_RESPONSE_BUFF_LEN];
+    const char *url_format           = "%s://%s/register/dev";
+    char        url[REG_URL_MAX_LEN] = {0};
+    int         port;
+    const char *ca_crt = NULL;
+    char        respbuff[DYN_RESPONSE_BUFF_LEN];
 
     /*format URL*/
 #if 1
     HAL_Snprintf(url, REG_URL_MAX_LEN, url_format, "https", DYN_REG_SERVER_URL);
-    port = DYN_REG_SERVER_PORT_TLS;
+    port   = DYN_REG_SERVER_PORT_TLS;
     ca_crt = iot_ca_get();
 #else
     HAL_Snprintf(url, REG_URL_MAX_LEN, url_format, "http", DYN_REG_SERVER_URL);
@@ -451,8 +446,8 @@ static int _post_reg_request_by_http(char *request_buf, DeviceInfo *pDevInfo)
     http_client.header = "Accept: text/xml,application/json;*/*\r\n";
 
     http_data.post_content_type = "application/x-www-form-urlencoded";
-    http_data.post_buf = request_buf;
-    http_data.post_buf_len = strlen(request_buf);
+    http_data.post_buf          = request_buf;
+    http_data.post_buf_len      = strlen(request_buf);
 
     Ret = qcloud_http_client_common(&http_client, url, port, ca_crt, HTTP_POST, &http_data);
     if (QCLOUD_RET_SUCCESS != Ret) {
@@ -462,7 +457,7 @@ static int _post_reg_request_by_http(char *request_buf, DeviceInfo *pDevInfo)
 
     memset(respbuff, 0, DYN_RESPONSE_BUFF_LEN);
     http_data.response_buf_len = DYN_RESPONSE_BUFF_LEN;
-    http_data.response_buf = respbuff;
+    http_data.response_buf     = respbuff;
 
     Ret = qcloud_http_recv_data(&http_client, DYN_REG_RES_HTTP_TIMEOUT_MS, &http_data);
     if (QCLOUD_RET_SUCCESS != Ret) {
@@ -480,24 +475,25 @@ static int _post_reg_request_by_http(char *request_buf, DeviceInfo *pDevInfo)
     return Ret;
 }
 
-
 static int _cal_dynreg_sign(DeviceInfo *pDevInfo, char *signout, int max_signlen, int nonce, uint32_t timestamp)
 {
-    int sign_len;
-    size_t olen = 0;
-    char  *pSignSource = NULL;
-    const char *sign_fmt = "deviceName=%s&nonce=%d&productId=%s&timestamp=%d";
-    char sign[DYN_REG_SIGN_LEN] = {0};
+    int         sign_len;
+    size_t      olen                   = 0;
+    char *      pSignSource            = NULL;
+    const char *sign_fmt               = "deviceName=%s&nonce=%d&productId=%s&timestamp=%d";
+    char        sign[DYN_REG_SIGN_LEN] = {0};
 
     /*format sign data*/
-    sign_len = strlen(sign_fmt) + strlen(pDevInfo->device_name) + strlen(pDevInfo->product_id) + sizeof(int) + sizeof(uint32_t) + DYN_BUFF_DATA_MORE;
+    sign_len = strlen(sign_fmt) + strlen(pDevInfo->device_name) + strlen(pDevInfo->product_id) + sizeof(int) +
+               sizeof(uint32_t) + DYN_BUFF_DATA_MORE;
     pSignSource = HAL_Malloc(sign_len);
     if (pSignSource == NULL) {
         Log_e("malloc sign source buff fail");
         return QCLOUD_ERR_FAILURE;
     }
     memset(pSignSource, 0, sign_len);
-    HAL_Snprintf((char *)pSignSource, sign_len, sign_fmt, pDevInfo->device_name, nonce, pDevInfo->product_id, timestamp);
+    HAL_Snprintf((char *)pSignSource, sign_len, sign_fmt, pDevInfo->device_name, nonce, pDevInfo->product_id,
+                 timestamp);
 
     /*cal hmac sha1*/
     utils_hmac_sha1(pSignSource, strlen(pSignSource), sign, pDevInfo->product_secret, strlen(pDevInfo->product_secret));
@@ -510,16 +506,17 @@ static int _cal_dynreg_sign(DeviceInfo *pDevInfo, char *signout, int max_signlen
     return (olen > max_signlen) ? QCLOUD_ERR_FAILURE : QCLOUD_RET_SUCCESS;
 }
 
-
-int qcloud_iot_dyn_reg_dev(DeviceInfo *pDevInfo)
+int IOT_DynReg_Device(DeviceInfo *pDevInfo)
 {
-    const char  *para_format = "{\"deviceName\":\"%s\",\"nonce\":%d,\"productId\":\"%s\",\"timestamp\":%d,\"signature\":\"%s\"}";
-    int nonce;
-    int Ret;
+    const char *para_format =
+        "{\"deviceName\":\"%s\",\"nonce\":%d,\"productId\":"
+        "\"%s\",\"timestamp\":%d,\"signature\":\"%s\"}";
+    int      nonce;
+    int      Ret;
     uint32_t timestamp;
-    int len;
-    char sign[DYN_REG_SIGN_LEN] = {0};
-    char *pRequest = NULL;
+    int      len;
+    char     sign[DYN_REG_SIGN_LEN] = {0};
+    char *   pRequest               = NULL;
 
     if (strlen(pDevInfo->product_secret) < UTILS_AES_BLOCK_LEN) {
         Log_e("product key illegal: %s", pDevInfo->product_secret);
@@ -527,7 +524,7 @@ int qcloud_iot_dyn_reg_dev(DeviceInfo *pDevInfo)
     }
 
     srand_d(HAL_GetTimeMs());
-    nonce = rand_d();
+    nonce     = rand_d();
     timestamp = time(0);
 
     /*cal sign*/
@@ -537,8 +534,8 @@ int qcloud_iot_dyn_reg_dev(DeviceInfo *pDevInfo)
     }
 
     /*format http request*/
-    len = strlen(para_format) + strlen(pDevInfo->product_id) + strlen(pDevInfo->device_name) + sizeof(int)\
-          + sizeof(uint32_t) + strlen(sign) + DYN_BUFF_DATA_MORE;
+    len = strlen(para_format) + strlen(pDevInfo->product_id) + strlen(pDevInfo->device_name) + sizeof(int) +
+          sizeof(uint32_t) + strlen(sign) + DYN_BUFF_DATA_MORE;
     pRequest = HAL_Malloc(len);
     if (!pRequest) {
         Log_e("malloc request memory fail");
@@ -563,14 +560,13 @@ int qcloud_iot_dyn_reg_dev(DeviceInfo *pDevInfo)
 
 #else
 
-int qcloud_iot_dyn_reg_dev(DeviceInfo *pDevInfo)
+int IOT_DynReg_Device(DeviceInfo *pDevInfo)
 {
     return QCLOUD_ERR_FAILURE;
 }
 
-#endif //DEV_DYN_REG_ENABLED
+#endif  // DEV_DYN_REG_ENABLED
 
 #ifdef __cplusplus
 }
 #endif
-

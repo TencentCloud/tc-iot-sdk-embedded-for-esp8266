@@ -28,7 +28,7 @@ pip install xlrd
 ```
 
 ### 2.从腾讯云物联 C-SDK 中抽取相关代码
-项目默认包含了一个基于腾讯云IoT Explorer C-SDK v3.1.1的代码。**如不需要更新可直接跳到第四步**
+项目默认包含了一个基于腾讯云IoT Explorer C-SDK v3.1.2的代码。**如不需要更新可直接跳到第四步**
 
 如果有需要更新SDK，可根据使用的平台按下面步骤下载更新：
 ##### 从GitHub下载C-SDK代码
@@ -152,3 +152,14 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 
 ### 6. WiFi配网说明
 工程里面包含了WiFi配网及设备绑定的代码，关于softAP配网协议及接口使用请看 [WiFi设备softAP配网](https://github.com/tencentyun/qcloud-iot-esp-wifi/blob/master/docs/WiFi%E8%AE%BE%E5%A4%87softAP%E9%85%8D%E7%BD%91v2.0.md)，关于SmartConfig配网协议及接口使用请看 [WiFi设备SmartConfig配网](https://github.com/tencentyun/qcloud-iot-esp-wifi/blob/master/docs/WiFi%E8%AE%BE%E5%A4%87SmartConfig%E9%85%8D%E7%BD%91.md)。对于支持乐鑫ESP-TOUCH协议的设备，建议优先选择SmartConfig配网。
+
+### 7. ESP8266固件OTA
+工程里面包含了对ESP8266进行完整固件OTA的参考代码，编译时首先需要打开
+```
+CONFIG_PARTITION_TABLE_TWO_OTA=y
+CONFIG_QCLOUD_OTA_ESP_ENABLED=y
+```
+在代码里面，只需要在应用的sample比如light_data_template_sample.c里面调用enable_ota_task接口函数就可以。
+
+首先使用flash工具更新具备OTA功能的固件之后，后续就可以将更新编译出来的esp8266-qcloud-iot.bin上传到腾讯云物联网平台进行固件升级的操作。
+如果想恢复到初始状态，需要用flash工具将ota_data_initial.bin烧写到flash的0xD000位置

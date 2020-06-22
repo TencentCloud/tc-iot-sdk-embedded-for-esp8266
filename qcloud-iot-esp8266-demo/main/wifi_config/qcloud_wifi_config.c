@@ -283,13 +283,13 @@ int get_reg_dev_info(DeviceInfo *dev_info)
         return ret;
     }
 
-    // just a sample to show if we need to do dynamic register
-    // if dev_info->device_secret == "YOUR_IOT_PSK", there is no device secret for now
-    //    dev_info->product_secret != "YOUR_PRODUCT_SECRET", we have product secret and can do dynamic register
+    // 简单演示进入动态注册的条件，用户可根据自己情况调整
+    // 如果 dev_info->device_secret 等于 "YOUR_IOT_PSK", 表示设备没有有效的PSK
+    // 并且 dev_info->product_secret 不等于 "YOUR_PRODUCT_SECRET", 表示具备产品密钥，可以进行动态注册
     if (!strncmp(dev_info->device_secret, "YOUR_IOT_PSK", MAX_SIZE_OF_DEVICE_SECRET)
         && strncmp(dev_info->product_secret, "YOUR_PRODUCT_SECRET", MAX_SIZE_OF_PRODUCT_SECRET)) {
 
-        ret = qcloud_iot_dyn_reg_dev(dev_info);
+        ret = IOT_DynReg_Device(dev_info);
         if (ret) {
             Log_e("dynamic register device failed: %d", ret);
             return ret;

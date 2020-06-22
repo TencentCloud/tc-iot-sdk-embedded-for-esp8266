@@ -5,16 +5,15 @@
 COMPONENT_ADD_INCLUDEDIRS += ./
 COMPONENT_ADD_INCLUDEDIRS += ./wifi_config
 
+COMPONENT_ADD_INCLUDEDIRS += ./ota_esp
+COMPONENT_SRCDIRS += ./ota_esp
+
 ifdef CONFIG_SMART_LIGHT_ENABLED
 COMPONENT_SRCDIRS += ./samples/data_template_light
 endif
 
 ifdef CONFIG_GATEWAY_ENABLED
 COMPONENT_SRCDIRS += ./samples/gateway
-endif
-
-ifdef CONFIG_OTA_ENABLED
-COMPONENT_SRCDIRS += ./samples/ota
 endif
 
 ifdef CONFIG_RAW_DATA_ENABLED
