@@ -115,14 +115,15 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 ### 5.编译及烧写
 执行make menuconfig可进行功能配置，顶层菜单里面有对本示例的配置（QCloud IoT demo Configuration）
 ```
-   [*] To demo IoT Explorer (y) or IoT Hub (n)                                       
-         Select explorer demo example (Smart light example)  --->                      
-   [*] To use WiFi config or not                                          
-   (YOUR_SSID) WiFi SSID                                                             
-   (YOUR_WIFI_PW) WiFi PASSWORD   
+   [*] To demo IoT Explorer (y) or IoT Hub (n)                      
+         Select explorer demo example (Smart light example)  --->  
+   [*] To use WiFi config or not                                  
+   (YOUR_WIFI) WiFi SSID                                          
+   (12345678) WiFi PASSWORD                                       
+   [*] To enable OTA support on ESP or not   
 ```
 
-第一项可选择演示IoT Explorer示例（勾选）或者IoT Hub示例（不勾选），勾选IoT Explorer示例，则可通过示例选择子菜单进一步选择需要demo的示例，支持的示例有智能灯、网关、OTA、二进制、MQTT
+第一项可选择演示IoT Explorer示例（勾选）或者IoT Hub示例（不勾选），勾选IoT Explorer示例，则可通过示例选择子菜单进一步选择需要demo的示例，支持的示例有智能灯、网关、二进制、MQTT
 
 ```
 		   Select explorer demo example 
@@ -132,7 +133,6 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
  ┌───────────────────────────────────────────────────────────┐ 
  │                  (X) Smart light example                  │ 
  │                  ( ) Gateway example                      │ 
- │                  ( ) OTA example                          │ 
  │                  ( ) Raw data example                     │ 
  │                  ( ) Mqtt example                         │ 
  │                                                           │ 
@@ -159,7 +159,7 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 CONFIG_PARTITION_TABLE_TWO_OTA=y
 CONFIG_QCLOUD_OTA_ESP_ENABLED=y
 ```
-在代码里面，只需要在应用的sample比如light_data_template_sample.c里面调用enable_ota_task接口函数就可以。
+在代码里面，只需要在应用的sample比如light_data_template_sample.c里面调用enable_ota_task接口函数就会启动OTA后台任务。
 
-首先使用flash工具更新具备OTA功能的固件之后，后续就可以将更新编译出来的esp8266-qcloud-iot.bin上传到腾讯云物联网平台进行固件升级的操作。
-如果想恢复到初始状态，需要用flash工具将ota_data_initial.bin烧写到flash的0xD000位置
+首先使用flash工具更新具备OTA功能的固件（分区信息需要使用partitions_two_ota.bin），后续就可以将更新编译出来的esp8266-qcloud-iot.bin上传到腾讯云物联网平台进行固件升级的操作。
+如果想恢复到初始状态，除了更新bootloader.bin/esp8266-qcloud-iot.bin/partitions_two_ota.bin，还需要将ota_data_initial.bin烧写到flash的0xD000位置
