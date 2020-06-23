@@ -12,9 +12,14 @@
  *
  */
 
-
 #ifndef __QCLOUD_WIFI_CONFIG_H__
 #define __QCLOUD_WIFI_CONFIG_H__
+
+typedef enum {
+    WIFI_CONFIG_SUCCESS  = 0, /* WiFi config and MQTT connect success */
+    WIFI_CONFIG_GOING_ON = 1, /* WiFi config and MQTT connect is going on */
+    WIFI_CONFIG_FAILED   = 2, /* WiFi config and MQTT connect failed */
+} eWiFiConfigState;
 
 /**
  * @brief Start softAP WiFi config and device binding process
@@ -51,5 +56,8 @@ void stop_smartconfig(void);
  */
 bool is_wifi_config_successful(void);
 
-#endif //__QCLOUD_WIFI_CONFIG_H__
+int query_wifi_config_state(void);
 
+int start_log_softAP(void);
+
+#endif  //__QCLOUD_WIFI_CONFIG_H__

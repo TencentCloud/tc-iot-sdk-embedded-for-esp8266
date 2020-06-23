@@ -184,7 +184,11 @@ void *qcloud_osc_init(const char *productId, const char *deviceName, void *chann
     int wait_cnt = 10;
     while (!h_osc->topic_ready && (wait_cnt > 0)) {
         // wait for subscription result
+#ifdef MULTITHREAD_ENABLED
+        HAL_SleepMs(500);
+#else
         IOT_MQTT_Yield(channel, 200);
+#endif
         wait_cnt--;
     }
 

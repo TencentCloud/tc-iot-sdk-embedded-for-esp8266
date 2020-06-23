@@ -65,13 +65,6 @@ static DeviceInfo sg_devInfo;
 static int sg_sub_packet_id = -1;
 
 
-// user's log print callback
-static bool log_handler(const char* message)
-{
-    // return true if print success
-    return false;
-}
-
 // MQTT event callback
 static void _mqtt_event_handler(void *pclient, void *handle_context, MQTTEventMsg *msg)
 {
@@ -194,20 +187,20 @@ static void HexDump(uint8_t *pData, uint16_t len)
 {
     int i;
 
+    HAL_Printf("\n[");
     for (i = 0; i < len; i++) {
-        if (i % 32 == 0) {
-            HAL_Printf("\n");
-        }
-        HAL_Printf(" %02X", pData[i]);
+        if (i == (len - 1)) {
+            HAL_Printf("%d", pData[i]);
+        } else
+            HAL_Printf("%d,", pData[i]);
     }
-    HAL_Printf("\n");
+    HAL_Printf("]\n");
 }
 
 // publish raw data msg
 static int _publish_raw_data_msg(void *client, QoS qos)
 {
     sRawDataFrame raw_data;
-
 
     memset((char *)&raw_data, 0, sizeof(sRawDataFrame));
     raw_data.magic_head = MAGIC_HEAD_NUM;
@@ -265,7 +258,6 @@ int qcloud_iot_explorer_demo(eDemoType eType)
 {
     int rc;
 
-
     if (eDEMO_RAW_DATA != eType) {
         Log_e("Demo config (%d) illegal, please check", eType);
         return QCLOUD_ERR_FAILURE;
@@ -284,21 +276,10 @@ int qcloud_iot_explorer_demo(eDemoType eType)
     if (client != NULL) {
         Log_i("Cloud Device Construct Success");
     } else {
-        rc = IOT_MQTT_GetErrCode();
+        rc = init_params.err_code;
         Log_e("MQTT Construct failed, rc = %d", rc);
         return QCLOUD_ERR_FAILURE;
     }
-
-#ifdef SYSTEM_COMM
-    long time = 0;
-    // get system timestamp from server
-    rc = IOT_Get_SysTime(client, &time);
-    if (QCLOUD_RET_SUCCESS == rc) {
-        Log_i("system time is %ld", time);
-    } else {
-        Log_e("get system time failed!");
-    }
-#endif
 
     //subscribe normal topics here
     rc = _subscribe_raw_data_topic(client, QOS1);
@@ -325,7 +306,7 @@ int qcloud_iot_explorer_demo(eDemoType eType)
             }
         }
 
-        HAL_SleepMs(5000);
+        HAL_SleepMs(10000);
     } while (sg_running_state);
 
     rc = IOT_MQTT_Destroy(&client);

@@ -29,21 +29,20 @@
 #define YEILD_THREAD_STACK_SIZE     4096
 #define SUBDEV1_THREAD_STACK_SIZE   6144
 
-static int running_state = 0;
-
 #define MAX_SIZE_OF_TOPIC (128)
 #define MAX_SIZE_OF_DATA (128)
 
-#define SUB_DEV_USE_DATA_TEMPLATE_LIGHT
+//#define SUB_DEV_USE_DATA_TEMPLATE_LIGHT
 #ifdef SUB_DEV_USE_DATA_TEMPLATE_LIGHT
-#define LIGHT_SUB_DEV_PRODUCT_ID    "BK7EEF4UIB"
-#define LIGHT_SUB_DEV_NAME          "dev01"
+#define LIGHT_SUB_DEV_PRODUCT_ID    "65HDW9BOM1"
+#define LIGHT_SUB_DEV_NAME          "test_light01"
 extern void* sub_dev1_thread(void *ptr, char *product_id, char *device_name);
+extern bool g_subdev1_thread_running;
 #endif
 
 
 static int sg_sub_packet_id = -1;
-static bool sg_thread_running = true;
+static bool sg_gw_yield_thread_running = true;
 
 static GatewayDeviceInfo sg_GWdevInfo;
 
@@ -173,22 +172,22 @@ static int _setup_connect_init_params(GatewayInitParam* init_params)
 /**
  * yield thread runner
  */
-static void *gateway_yield_thread(void *ptr)
+static void my_gateway_yield_thread(void *ptr)
 {
 
     int rc = QCLOUD_RET_SUCCESS;
     void *pClient = ptr;
 
     Log_d("gateway yield thread start ...");
-    while (sg_thread_running) {
-        rc = IOT_Gateway_Yield(pClient, 200);
+    while (sg_gw_yield_thread_running) {
+        rc = IOT_Gateway_Yield(pClient, 500);
         if (rc == QCLOUD_ERR_MQTT_ATTEMPTING_RECONNECT) {
             continue;
         } else if (rc != QCLOUD_RET_SUCCESS && rc != QCLOUD_RET_MQTT_RECONNECTED) {
             Log_e("Something goes error: %d", rc);
             //break;
         }
-        HAL_SleepMs(10);
+        HAL_SleepMs(500);
     }
 
     vTaskDelete(NULL);
@@ -201,9 +200,9 @@ static void *gateway_yield_thread(void *ptr)
  */
 
 #ifdef SUB_DEV_USE_DATA_TEMPLATE_LIGHT  //show subdev with data template. 
-static void *sub_dev_thread(void *ptr)
+static void sub_dev_thread(void *ptr)
 {
-    return sub_dev1_thread(ptr, LIGHT_SUB_DEV_PRODUCT_ID, LIGHT_SUB_DEV_NAME);
+    sub_dev1_thread(ptr, LIGHT_SUB_DEV_PRODUCT_ID, LIGHT_SUB_DEV_NAME);
 }
 #endif
 
@@ -220,12 +219,7 @@ int qcloud_iot_explorer_demo(eDemoType eType)
     GatewayParam param = DEFAULT_GATEWAY_PARAMS;
     DeviceInfo *subDevInfo;
 
-#ifdef SUB_DEV_USE_DATA_TEMPLATE_LIGHT
-    TaskHandle_t light_thread_t = NULL;
-#endif
-
     IOT_Log_Set_Level(eLOG_DEBUG);
-
 
     if (eDEMO_GATEWAY != eType) {
         Log_e("Demo config (%d) illegal, please check", eType);
@@ -246,10 +240,15 @@ int qcloud_iot_explorer_demo(eDemoType eType)
     }
 
     //mqtt_yeild can be called by only one thread when multi-thread run, so do not use sync operation below
-    TaskHandle_t yield_thread_t;
-    yield_thread_t = HAL_ThreadCreate(YEILD_THREAD_STACK_SIZE, 4, "yield_thread", gateway_yield_thread, client);
-    if (yield_thread_t == NULL) {
-        Log_e("create yield thread fail");
+    ThreadParams gw_thread_params      = {0};
+    gw_thread_params.thread_func       = my_gateway_yield_thread;
+    gw_thread_params.thread_name       = "gateway_yield_thread";
+    gw_thread_params.user_arg          = client;
+    gw_thread_params.stack_size        = 6144;
+    gw_thread_params.priority          = 3;
+    rc = HAL_ThreadCreate(&gw_thread_params);
+    if (rc != QCLOUD_RET_SUCCESS) {
+        Log_e("create gw yield thread fail: %d", rc);
         goto exit;
     }
 
@@ -288,13 +287,21 @@ int qcloud_iot_explorer_demo(eDemoType eType)
 #ifdef SUB_DEV_USE_DATA_TEMPLATE_LIGHT  //subdev with data template example.  
         if ((0 == strcmp(subDevInfo->product_id, LIGHT_SUB_DEV_PRODUCT_ID))
             && (0 == strcmp(subDevInfo->device_name, LIGHT_SUB_DEV_NAME))) {
-            light_thread_t = HAL_ThreadCreate(SUBDEV1_THREAD_STACK_SIZE, 2, "sub_dev1_thread", sub_dev_thread, client);
-            if (light_thread_t == NULL) {
+            g_subdev1_thread_running = true;
+
+            ThreadParams thread_params      = {0};
+            thread_params.thread_func       = sub_dev_thread;
+            thread_params.thread_name       = "sub_dev_thread";
+            thread_params.user_arg          = client;
+            thread_params.stack_size        = 6144;
+            thread_params.priority          = 4;
+            rc = HAL_ThreadCreate(&thread_params);
+            if (rc != QCLOUD_RET_SUCCESS) {
                 Log_e("create sub_dev light thread fail");
+                g_subdev1_thread_running = false;
                 goto exit;
             } else {
                 Log_e("create sub_dev light thread success");
-                running_state = 1;
             }
             continue;
         }
@@ -347,17 +354,17 @@ int qcloud_iot_explorer_demo(eDemoType eType)
         }
     }
 
-exit:
-
 #ifdef SUB_DEV_USE_DATA_TEMPLATE_LIGHT
-    if (NULL != light_thread_t) {
-        while (running_state) {
-            HAL_SleepMs(2000);
-        };
-    }
+    int subdev_run_cnt = 0;
+    while (g_subdev1_thread_running && subdev_run_cnt++ < 20) {
+        Log_d("subdev thread is running");
+        HAL_SleepMs(2000);
+    };
 #else
-    HAL_SleepMs(2000); /*wait reply over*/
+    HAL_SleepMs(10000); /*wait reply over*/
 #endif
+
+exit:
 
     //set GateWay device info
     param.product_id =  gw->gw_info.product_id;
@@ -382,18 +389,15 @@ exit:
         Log_e("%d of %d sub devices offline fail", errCount, gw->sub_dev_num);
     }
 
-    //stop running thread
-    sg_thread_running = false;
+    //stop running thread    
+    sg_gw_yield_thread_running = false;
     HAL_SleepMs(2000); /*make sure no thread use client before destroy*/
 
-#ifdef SUB_DEV_USE_DATA_TEMPLATE_LIGHT  //show subdev with data template.
-    if (NULL != light_thread_t) {
-        HAL_ThreadDestroy((void *)light_thread_t);
-    }
+#ifdef SUB_DEV_USE_DATA_TEMPLATE_LIGHT
+    g_subdev1_thread_running = false;
+    HAL_SleepMs(2000);
 #endif
-
     rc = IOT_Gateway_Destroy(client);
-
 
     return rc;
 }

@@ -12,8 +12,6 @@
  *
  */
 
-
-
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -27,7 +25,6 @@
 #include "qcloud_iot_export_log.h"
 #include "qcloud_iot_import.h"
 #include "wifi_config_internal.h"
-
 
 /************** WiFi config error msg collect and post feature ******************/
 
@@ -62,30 +59,29 @@ static const char *g_err_log[] = {
 };
 
 typedef struct {
-    uint8_t    record;
-    uint8_t    reserved;
-    uint16_t   err_id;          /* error msg Id */
-    int32_t    err_sub_id;      /* error msg sub Id */
+    uint8_t  record;
+    uint8_t  reserved;
+    uint16_t err_id;     /* error msg Id */
+    int32_t  err_sub_id; /* error msg sub Id */
 } err_log_t;
 
 typedef struct {
-    uint32_t    magic_header;                           /* VALID_MAGIC_CODE for valid info */
-    uint32_t    log_cnt;
-    err_log_t   err_log[0];
+    uint32_t  magic_header; /* VALID_MAGIC_CODE for valid info */
+    uint32_t  log_cnt;
+    err_log_t err_log[0];
 } save_err_log_t;
 
 #define ERR_LOG_QUEUE_SIZE 16
-#define VALID_MAGIC_CODE 0xF00DBEEF
+#define VALID_MAGIC_CODE   0xF00DBEEF
 
 /* FreeRTOS msg queue */
-static void *g_err_log_queue = NULL;
-static size_t g_errlog_addr  = 0x1FB000;
-
+static void * g_err_log_queue = NULL;
+static size_t g_errlog_addr   = 0x1FB000;
 
 static int check_err_log(uint32_t *log_cnt)
 {
-    esp_err_t  ret;
-    uint32_t header, msg_cnt;
+    esp_err_t ret;
+    uint32_t  header, msg_cnt;
     ret = spi_flash_read(g_errlog_addr, (uint32_t *)&header, sizeof(uint32_t));
     if (ESP_OK != ret) {
         Log_e("spi_flash_read error: %d", ret);
@@ -110,9 +106,9 @@ static int check_err_log(uint32_t *log_cnt)
 
 static int load_err_log(void *log, size_t log_size)
 {
-    esp_err_t  ret;
-    size_t log_addr = g_errlog_addr + 2 * sizeof(uint32_t);
-    ret = spi_flash_read(log_addr, (uint32_t *)log, log_size);
+    esp_err_t ret;
+    size_t    log_addr = g_errlog_addr + 2 * sizeof(uint32_t);
+    ret                = spi_flash_read(log_addr, (uint32_t *)log, log_size);
     if (ESP_OK != ret) {
         Log_e("spi_flash_read error: %d", ret);
         return (int)ret;
@@ -123,7 +119,7 @@ static int load_err_log(void *log, size_t log_size)
 
 static int save_err_log(void *log, size_t log_size)
 {
-    esp_err_t  ret;
+    esp_err_t ret;
 
     ret = spi_flash_erase_sector(g_errlog_addr / SPI_FLASH_SEC_SIZE);
     if (ESP_OK != ret) {
@@ -138,7 +134,6 @@ static int save_err_log(void *log, size_t log_size)
     }
 
     return 0;
-
 }
 
 static int clear_err_log(void)
@@ -150,7 +145,6 @@ static int clear_err_log(void)
     }
 
     return 0;
-
 }
 
 int handle_saved_error_log(void)
@@ -169,8 +163,8 @@ int handle_saved_error_log(void)
         return -1;
     }
 
-    size_t log_size = log_cnt * sizeof(err_log_t);
-    err_log_t *log_src = (err_log_t *)HAL_Malloc(log_size);
+    size_t     log_size = log_cnt * sizeof(err_log_t);
+    err_log_t *log_src  = (err_log_t *)HAL_Malloc(log_size);
     if (log_src == NULL) {
         Log_e("malloc failed");
         return -1;
@@ -188,8 +182,8 @@ int handle_saved_error_log(void)
     do {
         /* change the record type to previous error */
         log_src[i].record = PRE_ERR;
-        Log_i("Handle Previous Error: %s (%u, %d)",
-              g_err_log[log_src[i].err_id], log_src[i].err_id, log_src[i].err_sub_id);
+        Log_i("Handle Previous Error: %s (%u, %d)", g_err_log[log_src[i].err_id], log_src[i].err_id,
+              log_src[i].err_sub_id);
 
         /* unblocking send */
         int ret = xQueueGenericSend(g_err_log_queue, &log_src[i], 0, queueSEND_TO_BACK);
@@ -205,7 +199,7 @@ int handle_saved_error_log(void)
     return 0;
 }
 
-#endif //WIFI_ERR_LOG_POST
+#endif  // WIFI_ERR_LOG_POST
 
 // error happen flag
 static bool sg_error_happen = false;
@@ -237,11 +231,8 @@ int push_error_log(uint16_t err_id, int32_t err_sub_id)
         return ERR_OS_QUEUE;
     }
 
-    err_log_t err_log = {.record = CUR_ERR,
-                         .err_id = err_id, .err_sub_id = err_sub_id
-                        };
-    Log_e("Boarding error happen: %s (%u, %d)",
-          g_err_log[err_log.err_id], err_log.err_id, err_log.err_sub_id);
+    err_log_t err_log = {.record = CUR_ERR, .err_id = err_id, .err_sub_id = err_sub_id};
+    Log_e("Boarding error happen: %s (%u, %d)", g_err_log[err_log.err_id], err_log.err_id, err_log.err_sub_id);
     /* unblocking send */
     int ret = xQueueGenericSend(g_err_log_queue, &err_log, 0, queueSEND_TO_BACK);
     if (ret != pdPASS) {
@@ -262,14 +253,13 @@ bool is_config_error_happen(void)
 int app_send_error_log(comm_peer_t *peer, uint8_t record, uint16_t err_id, int32_t err_sub_id)
 {
 #ifdef WIFI_ERR_LOG_POST
-    int ret;
-    char msg_str[64] = {0};
+    int  ret;
+    char msg_str[64]   = {0};
     char json_str[128] = {0};
 
-    HAL_Snprintf(msg_str, sizeof(msg_str), "%s (%u, %d)",
-                 g_err_log[err_id], err_id, err_sub_id);
+    HAL_Snprintf(msg_str, sizeof(msg_str), "%s (%u, %d)", g_err_log[err_id], err_id, err_sub_id);
 
-    cJSON * reply_json = cJSON_CreateObject();
+    cJSON *reply_json = cJSON_CreateObject();
     cJSON_AddNumberToObject(reply_json, "cmdType", (int)CMD_DEVICE_REPLY);
     cJSON_AddStringToObject(reply_json, "deviceReply", record == CUR_ERR ? "Current_Error" : "Previous_Error");
     cJSON_AddStringToObject(reply_json, "log", msg_str);
@@ -298,11 +288,11 @@ int get_and_post_error_log(comm_peer_t *peer)
 {
     int err_cnt = 0;
 #ifdef WIFI_ERR_LOG_POST
-    err_log_t err_msg;
+    err_log_t            err_msg;
     signed portBASE_TYPE rc;
     do {
         rc = xQueueReceive(g_err_log_queue, &err_msg, 0);
-        if ( rc == pdPASS) {
+        if (rc == pdPASS) {
             app_send_error_log(peer, err_msg.record, err_msg.err_id, err_msg.err_sub_id);
             if (err_msg.record == CUR_ERR)
                 err_cnt++;
@@ -316,12 +306,12 @@ int save_error_log(void)
 {
 #ifdef WIFI_ERR_LOG_POST
     signed portBASE_TYPE rc;
-    uint32_t log_cnt = (uint32_t)uxQueueMessagesWaiting(g_err_log_queue);
+    uint32_t             log_cnt = (uint32_t)uxQueueMessagesWaiting(g_err_log_queue);
     if (log_cnt == 0)
         return 0;
 
-    size_t log_size = 2 * sizeof(uint32_t) + log_cnt * sizeof(err_log_t);
-    save_err_log_t *log_src = (save_err_log_t *)HAL_Malloc(log_size);
+    size_t          log_size = 2 * sizeof(uint32_t) + log_cnt * sizeof(err_log_t);
+    save_err_log_t *log_src  = (save_err_log_t *)HAL_Malloc(log_size);
     if (log_src == NULL) {
         Log_e("malloc failed");
         return -1;
@@ -330,7 +320,7 @@ int save_error_log(void)
     uint32_t i = 0, j = 0;
     do {
         rc = xQueueReceive(g_err_log_queue, &log_src->err_log[i], 0);
-        if ( rc == pdPASS) {
+        if (rc == pdPASS) {
             /* only save current error */
             if (log_src->err_log[i].record == CUR_ERR) {
                 Log_w("Save unhandled Current Error %u: %s (%u, %d)", j + 1, g_err_log[log_src->err_log[i].err_id],
@@ -347,8 +337,8 @@ int save_error_log(void)
     vQueueDelete(g_err_log_queue);
 
     log_src->magic_header = VALID_MAGIC_CODE;
-    log_src->log_cnt = j;
-    log_size = 2 * sizeof(uint32_t) + log_src->log_cnt * sizeof(err_log_t);
+    log_src->log_cnt      = j;
+    log_size              = 2 * sizeof(uint32_t) + log_src->log_cnt * sizeof(err_log_t);
     if (save_err_log(log_src, log_size)) {
         HAL_Free(log_src);
         Log_e("save error log to flash failed");
@@ -358,5 +348,3 @@ int save_error_log(void)
 #endif
     return 0;
 }
-
-

@@ -69,6 +69,7 @@ void *IOT_MQTT_Construct(MQTTInitParams *pParams)
     // create and init MQTTClient
     if ((mqtt_client = (Qcloud_IoT_Client *)HAL_Malloc(sizeof(Qcloud_IoT_Client))) == NULL) {
         Log_e("malloc MQTTClient failed");
+        pParams->err_code = QCLOUD_ERR_MALLOC;
         return NULL;
     }
 
@@ -76,6 +77,7 @@ void *IOT_MQTT_Construct(MQTTInitParams *pParams)
     if (rc != QCLOUD_RET_SUCCESS) {
         Log_e("mqtt init failed: %d", rc);
         HAL_Free(mqtt_client);
+        pParams->err_code = rc;
         return NULL;
     }
 
@@ -84,6 +86,7 @@ void *IOT_MQTT_Construct(MQTTInitParams *pParams)
     if (client_id == NULL) {
         Log_e("malloc client_id failed");
         HAL_Free(mqtt_client);
+        pParams->err_code = QCLOUD_ERR_MALLOC;
         return NULL;
     }
     memset(client_id, 0, MAX_SIZE_OF_CLIENT_ID + 1);
@@ -100,6 +103,7 @@ void *IOT_MQTT_Construct(MQTTInitParams *pParams)
         qcloud_iot_mqtt_fini(mqtt_client);
         HAL_Free(mqtt_client);
         HAL_Free(client_id);
+        pParams->err_code = QCLOUD_ERR_INVAL;
         return NULL;
     }
     size_t src_len = strlen(pParams->device_secret);
@@ -114,6 +118,7 @@ void *IOT_MQTT_Construct(MQTTInitParams *pParams)
         qcloud_iot_mqtt_fini(mqtt_client);
         HAL_Free(mqtt_client);
         HAL_Free(client_id);
+        pParams->err_code = QCLOUD_ERR_INVAL;
         return NULL;
     }
 #endif
@@ -124,6 +129,7 @@ void *IOT_MQTT_Construct(MQTTInitParams *pParams)
         qcloud_iot_mqtt_fini(mqtt_client);
         HAL_Free(mqtt_client);
         HAL_Free(client_id);
+        pParams->err_code = rc;
         return NULL;
     } else {
         Log_i("mqtt connect with id: %s success", mqtt_client->options.conn_id);

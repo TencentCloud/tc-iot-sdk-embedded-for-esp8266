@@ -190,6 +190,8 @@ typedef struct {
 
     MQTTEventHandler event_handle;  // event callback
 
+    int err_code;
+
 } MQTTInitParams;
 
 /**
@@ -198,12 +200,12 @@ typedef struct {
 #ifdef AUTH_MODE_CERT
 #define DEFAULT_MQTTINIT_PARAMS                                        \
     {                                                                  \
-        "china", NULL, NULL, NULL, NULL, 5000, 240 * 1000, 1, 1, { 0 } \
+        "china", NULL, NULL, NULL, NULL, 5000, 240 * 1000, 1, 1, { 0 }, 0 \
     }
 #else
 #define DEFAULT_MQTTINIT_PARAMS                                  \
     {                                                            \
-        "china", NULL, NULL, NULL, 5000, 240 * 1000, 1, 1, { 0 } \
+        "china", NULL, NULL, NULL, 5000, 240 * 1000, 1, 1, { 0 }, 0 \
     }
 #endif
 

@@ -49,6 +49,8 @@ SoftAP方式配网的基本原理是让设备通过softAP方式创建一个WiFi�
 ```
 10. 如果设备成功上报了token，物联网后台服务确认了token有效性，小程序会提示配网完成，设备添加成功。
 
+11. 设备端会记录配网的详细日志，如果配网或者添加设备失败，还可以让设备端创建一个特殊的softAP和UDP服务，通过小程序可以从设备端获取更多日志用于错误分析
+
 ## ESP8266使用softAP配网接口
 ### 腾讯云IoT AT指令ESP8266定制固件
 如果ESP8266烧写了腾讯云IoT AT指令ESP8266定制固件，则只要通过指令AT+TCDEVINFOSET配置好设备信息，再通过下面的指令启动softAP配网就可以
@@ -65,6 +67,7 @@ AT+TCSAP="ESP8266-SAP","12345678"
 
 ```
     /* to use WiFi config and device binding with Wechat mini program */
+    int wifi_config_state;
     int ret = start_softAP("ESP8266-SAP", "12345678", 0);
     if (ret) {
         Log_e("start wifi config failed: %d", ret);
@@ -73,9 +76,16 @@ AT+TCSAP="ESP8266-SAP","12345678"
         int wait_cnt = 150;
         do {
             Log_d("waiting for wifi config result...");
-            HAL_SleepMs(2000);
-            wifi_connected = is_wifi_config_successful();
-        } while (!wifi_connected && wait_cnt--);
+            HAL_SleepMs(2000);            
+            wifi_config_state = query_wifi_config_state();
+        } while (wifi_config_state == WIFI_CONFIG_GOING_ON && wait_cnt--);
+    }
+
+    wifi_connected = is_wifi_config_successful();
+    if (!wifi_connected) {
+        Log_e("wifi config failed!");
+        // setup a softAP to upload log to mini program
+        start_log_softAP();
     }
 
 ```
@@ -85,4 +95,4 @@ AT+TCSAP="ESP8266-SAP","12345678"
 - qcloud_wifi_config.c：配网相关接口实现，包括UDP服务及MQTT连接及token上报，主要依赖腾讯云物联网C-SDK及FreeRTOS/lwIP运行环境
 - wifi_config_esp.c：设备硬件WiFi操作相关接口实现，依赖于ESP8266 RTOS，当使用其他硬件平台时，需要进行移植适配
 - wifi_config_error_handle.c：设备错误日志处理，主要依赖于FreeRTOS
-
+- wifi_config_log_handle.c：设备配网日志收集和上报，主要依赖于FreeRTOS

@@ -164,6 +164,7 @@ void qcloud_demo_task(void* parm)
 
 #if CONFIG_WIFI_CONFIG_ENABLED
     /* to use WiFi config and device binding with Wechat mini program */
+    int wifi_config_state;
     //int ret = start_softAP("ESP8266-SAP", "12345678", 0);
     int ret = start_smartconfig();
     if (ret) {
@@ -173,9 +174,16 @@ void qcloud_demo_task(void* parm)
         int wait_cnt = 150;
         do {
             Log_d("waiting for wifi config result...");
-            HAL_SleepMs(2000);
-            wifi_connected = is_wifi_config_successful();
-        } while (!wifi_connected && wait_cnt--);
+            HAL_SleepMs(2000);            
+            wifi_config_state = query_wifi_config_state();
+        } while (wifi_config_state == WIFI_CONFIG_GOING_ON && wait_cnt--);
+    }
+
+    wifi_connected = is_wifi_config_successful();
+    if (!wifi_connected) {
+        Log_e("wifi config failed!");
+        // setup a softAP to upload log to mini program
+        start_log_softAP();
     }
 #else
     /* init wifi STA and start connection with expected BSS */

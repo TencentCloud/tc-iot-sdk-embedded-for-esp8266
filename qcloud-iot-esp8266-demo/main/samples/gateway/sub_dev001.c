@@ -538,22 +538,36 @@ static int _get_sys_info(void *handle, char *pJsonDoc, size_t sizeOfBuffer)
         {.key = "imei",            .type = TYPE_TEMPLATE_STRING, .data = "11-22-33-44"},
         {.key = "lat",             .type = TYPE_TEMPLATE_STRING, .data = "22.546015"},
         {.key = "lon",             .type = TYPE_TEMPLATE_STRING, .data = "113.941125"},
-        {NULL, NULL, 0}  //end
+        {NULL, NULL, 0, TYPE_TEMPLATE_STRING}  //end
     };
 
     /*self define info*/
     DeviceProperty self_info[] = {
-        {.key = "append_info", .type = TYPE_TEMPLATE_STRING, .data = "your self define info"},
-        {NULL, NULL, 0}  //end
+        {.key = "append_info", .type = TYPE_TEMPLATE_STRING, .data = "subdev report"},
+        {NULL, NULL, 0, TYPE_TEMPLATE_STRING}  //end
     };
 
     return IOT_Template_JSON_ConstructSysInfo(handle, pJsonDoc, sizeOfBuffer, plat_info, self_info);
 }
 
-
-void* sub_dev1_thread(void *ptr, char *product_id, char *device_name)
+/*control data may be for get status replay*/
+static void _get_status_reply_ack_cb(void *pClient, Method method, ReplyAck replyAck, const char *pReceivedJsonDocument,
+                                     void *pUserdata)
 {
 
+    Log_d("replyAck=%d", replyAck);
+    if (NULL == pReceivedJsonDocument) {
+        Log_d("Received Json Document is NULL");
+    } else {
+        Log_d("Received Json Document=%s", pReceivedJsonDocument);
+    }
+
+}
+
+bool g_subdev1_thread_running = false;
+
+void sub_dev1_thread(void *ptr, char *product_id, char *device_name)
+{
     DeviceProperty *pReportDataList[TOTAL_PROPERTY_COUNT];
     sReplyPara replyPara;
     int ReportCont;
@@ -568,13 +582,12 @@ void* sub_dev1_thread(void *ptr, char *product_id, char *device_name)
     init_params.device_name = device_name;
     init_params.event_handle.h_fp = event_handler;
 
-
-    void *client = IOT_Template_Construct(&init_params, IOT_Gateway_Get_MQTT_Client(pGateWayClient));
+    void *client = IOT_Template_Construct(&init_params, IOT_Gateway_Get_Mqtt_Client(pGateWayClient));
     if (client != NULL) {
         Log_i("Cloud Device Construct Success");
     } else {
         Log_e("Cloud Device Construct Failed");
-        return NULL;
+        return;
     }
 
     //usr init
@@ -589,7 +602,7 @@ void* sub_dev1_thread(void *ptr, char *product_id, char *device_name)
         Log_i("Register data template propertys Success");
     } else {
         Log_e("Register data template propertys Failed: %d", rc);
-        return NULL;
+        return;
     }
 
     //register data template actions here
@@ -599,28 +612,34 @@ void* sub_dev1_thread(void *ptr, char *product_id, char *device_name)
         Log_i("Register data template actions Success");
     } else {
         Log_e("Register data template actions Failed: %d", rc);
-        return NULL;
+        return;
     }
 #endif
 
+#if 0
     HAL_SleepMs(1000); //wait subcrible ack
     //report device info, then you can manager your product by these info, like position
     rc = _get_sys_info(client, sg_data_report_buffer, sg_data_report_buffersize);
     if (QCLOUD_RET_SUCCESS == rc) {
-        rc = IOT_Template_Report_SysInfo_Sync(client, sg_data_report_buffer, sg_data_report_buffersize, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+        //rc = IOT_Template_Report_SysInfo_Sync(client, sg_data_report_buffer, sg_data_report_buffersize, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+        rc = IOT_Template_Report_SysInfo(client, sg_data_report_buffer, sg_data_report_buffersize, 
+                    NULL, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
         if (rc != QCLOUD_RET_SUCCESS) {
             Log_e("Report system info fail, err: %d", rc);
-            return NULL;
+            return;
         }
     } else {
         Log_e("Get system info fail, err: %d", rc);
     }
+#endif
 
+    Log_d("to get data status");
     //get the property changed during offline
-    rc = IOT_Template_GetStatus_sync(client, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+    //rc = IOT_Template_GetStatus_sync(client, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
+    rc = IOT_Template_GetStatus(client, _get_status_reply_ack_cb, NULL, QCLOUD_IOT_MQTT_COMMAND_TIMEOUT);
     if (rc != QCLOUD_RET_SUCCESS) {
         Log_e("Get data status fail, err: %d", rc);
-        return NULL;
+        return;
     } else {
         Log_d("Get data status success");
     }
@@ -628,13 +647,16 @@ void* sub_dev1_thread(void *ptr, char *product_id, char *device_name)
     //init a timer for cycle report, you could delete it or not for your needs
     InitTimer(&sg_reportTimer);
 
-    while (IOT_Template_IsConnected(client) || QCLOUD_RET_SUCCESS == rc) {
-
+    while (IOT_Template_IsConnected(client) && g_subdev1_thread_running) {
+        Log_d("running..........");
+#if 0
         rc = IOT_Template_Yield_Without_MQTT_Yield(client, 200);
         if (QCLOUD_RET_SUCCESS != rc) {
             Log_d("Template Yield without mqtt err, rc:%d", rc);
         }
-
+#else
+        HAL_SleepMs(1000);
+#endif
         /* handle control msg from server */
         if (sg_control_msg_arrived) {
             deal_down_stream_user_logic(client, &sg_ProductData);
@@ -680,6 +702,7 @@ void* sub_dev1_thread(void *ptr, char *product_id, char *device_name)
         HAL_SleepMs(1000);
     }
 
+    Log_i("subdev thread quit");
     rc = IOT_Template_Destroy_Except_MQTT(client);
-    return NULL;
+    return;
 }
