@@ -8,11 +8,12 @@ IoT MQTT AT指令》
 | 1      | 中移        |   M5311          |      NB-IoT    |  M5311_LV_MOD_BOM_R002_1901232019_0906   |
 | 2      | 中移        |   M6315         |          2G    |   CMIOT_M6315_20180901_V10_EXT_20190827_152209     |
 | 3     | 中移         |   M8321          |         4G     |   QCloud_AT_v3.0.1_4G_Cellular 20190909_171245     |
-| 4      | 有方               | N10              |     2G         |     N10_I_1187_PQS63010_TC_V002C   |
-| 5      | 有方               | N21                |    NB-IoT      |     N21_RDD0CM_TC_V006A   |
-| 6      | 有方               | N720            |    4G         |    N720_EAB0CMF_BZ_V003A_T1    |
-| 7      | 移柯               | L206            |    2G         | L206Dv01.04b04.04 |
-| 8      | 乐鑫               | ESP8266            |    WIFI         |   QCloud_AT_ESP_WiFi_v1.1.0     |
+| 4     | 中移         |   ML302          |      4G cat1     |   QCloud_AT_v3.0.1_4G_Cellular     |
+| 5      | 有方               | N10              |     2G         |     N10_I_1187_PQS63010_TC_V002C   |
+| 6      | 有方               | N21                |    NB-IoT      |     N21_RDD0CM_TC_V006A   |
+| 7      | 有方               | N720            |    4G         |    N720_EAB0CMF_BZ_V003A_T1    |
+| 8      | 移柯               | L206            |    2G         | L206Dv01.04b04.04 |
+| 9      | 乐鑫               | ESP8266            |    WIFI         |   QCloud_AT_ESP8266_v2.0.0     |
 
 本工具是一个PC端的测试工具，可以对定制模组进行功能验证和稳定性测试。
 
