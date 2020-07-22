@@ -40,7 +40,8 @@ SoftAP方式配网的基本原理是让设备通过softAP方式创建一个WiFi�
     topic: $thing/up/service/ProductID/DeviceName
     payload: {"method":"app_bind_token","clientToken":"client-1234","params": {"token":"6ab82618a9d529a2ee777bf6e528a0fd"}}
 ```
-    设备端也可以通过订阅主题 $thing/down/service/ProductID/DeviceName 来获取token上报的结果
+- 设备端可以通过订阅主题 $thing/down/service/ProductID/DeviceName 来获取token上报的结果。
+- 注意如果设备需要通过动态注册来创建设备并获取设备密钥，则会先进行动态注册再连接MQTT。
     
 9. 在以上5-7步骤中，如果小程序收到设备UDP服务发送过来的错误日志，且deviceReply字段的值为"Current_Error"，则表示当前配网绑定过程中出错，需要退出配网操作。如果deviceReply字段是"Previous_Error"，则为上一次配网的出错日志，只需要上报，不影响当此操作。
 错误日志JSON格式例子：

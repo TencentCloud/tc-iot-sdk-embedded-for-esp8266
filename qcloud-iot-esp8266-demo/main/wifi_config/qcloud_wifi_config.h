@@ -56,8 +56,18 @@ void stop_smartconfig(void);
  */
 bool is_wifi_config_successful(void);
 
+/**
+ * @brief Check current WiFi config process state
+ *
+ * @return eWiFiConfigState
+ */
 int query_wifi_config_state(void);
 
+/**
+ * @brief Start a softAP(fixed SSID/PSW) and UDP server to upload log to Wechat mini program
+ *
+ * @return 0 when success, or err code for failure
+ */
 int start_log_softAP(void);
 
 #endif  //__QCLOUD_WIFI_CONFIG_H__

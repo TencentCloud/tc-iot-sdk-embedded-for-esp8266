@@ -391,7 +391,7 @@ int wifi_sta_init(void)
 
 int wifi_start_smartconfig(void)
 {
-    int ret = esp_smartconfig_set_type(SC_TYPE_ESPTOUCH);
+    int ret = esp_smartconfig_set_type(SC_TYPE_ESPTOUCH_AIRKISS);
     if (ESP_OK != ret) {
         Log_e("esp_smartconfig_set_type failed: %d", ret);
         return ret;
