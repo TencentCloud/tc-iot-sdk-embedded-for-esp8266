@@ -40,23 +40,11 @@ static char sg_product_id[MAX_SIZE_OF_PRODUCT_ID + 1] = "PRODUCT_ID";
 /* device name */
 static char sg_device_name[MAX_SIZE_OF_DEVICE_NAME + 1] = "YOUR_DEV_NAME";
 
-/* region */
-static char sg_region[MAX_SIZE_OF_REGION + 1] = "china";
-
-#ifdef DEV_DYN_REG_ENABLED
-/* product secret for device dynamic Registration  */
-static char sg_product_secret[MAX_SIZE_OF_PRODUCT_SECRET + 1] = "YOUR_PRODUCT_SECRET";
-#endif
-
-#ifdef AUTH_MODE_CERT
-/* public cert file name of certificate device */
-static char sg_device_cert_file_name[MAX_SIZE_OF_DEVICE_CERT_FILE_NAME + 1] = "YOUR_DEVICE_NAME_cert.crt";
-/* private key file name of certificate device */
-static char sg_device_privatekey_file_name[MAX_SIZE_OF_DEVICE_SECRET_FILE_NAME + 1] = "YOUR_DEVICE_NAME_private.key";
-#else
 /* device secret of PSK device */
 static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
-#endif
+
+/* region */
+static char sg_region[MAX_SIZE_OF_REGION + 1] = "china";
 
 #ifdef GATEWAY_ENABLED
 /* sub-device product id  */
@@ -64,6 +52,12 @@ static char sg_sub_device_product_id[MAX_SIZE_OF_PRODUCT_ID + 1] = "PRODUCT_ID";
 /* sub-device device name */
 static char sg_sub_device_name[MAX_SIZE_OF_DEVICE_NAME + 1] = "YOUR_SUB_DEV_NAME";
 #endif
+
+#ifdef DEV_DYN_REG_ENABLED
+/* product secret for device dynamic Registration  */
+static char sg_product_secret[MAX_SIZE_OF_PRODUCT_SECRET + 1] = "YOUR_PRODUCT_SECRET";
+#endif
+
 
 static int device_info_copy(void *pdst, void *psrc, uint8_t max_len)
 {

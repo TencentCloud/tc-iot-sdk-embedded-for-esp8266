@@ -5,7 +5,7 @@
 本项目适用于**ESP8266 Launcher**开发板，如果使用其他板子，需要修改main/board_ops.h里面的GPIO配置。
 
 示例中使用了两个GPIO，一个控制WiFi连接及配网的蓝色LED状态灯，一个在IoT Explorer demo中用于控制light sample的灯开关（绿色LED）。
-如果编译选择了配网模式和IoT Explorer demo（默认选项），则程序正常启动之后，会先进入配网模式（蓝色LED灯处于闪烁状态），可使用腾讯连连小程序进行配网，成功之后可以用小程序控制开发板上面绿色LED的亮灭。
+如果编译选择了配网模式和light sample默认选项），则程序正常启动之后，会先进入配网模式（蓝色LED灯处于闪烁状态），可使用腾讯连连小程序进行配网，成功之后可以用小程序控制开发板上面绿色LED的亮灭。
 
 ### 1. 获取 ESP8266_RTOS_SDK 以及编译器
 本项目基于**Linux(ubuntu)**环境进行开发，关于ESP8266开发的基础知识，请参考其 [开发指南](https://docs.espressif.com/projects/esp-idf/zh_CN/latest/esp32/get-started/linux-setup.html)
@@ -27,43 +27,11 @@ pip install pyserial
 pip install xlrd
 ```
 
-### 2.从腾讯云物联 C-SDK 中抽取相关代码
-项目默认包含了一个基于腾讯云IoT Explorer C-SDK v3.1.2的代码。**如不需要更新可直接跳到第四步**
-
-如果有需要更新SDK，可根据使用的平台按下面步骤下载更新：
-##### 从GitHub下载C-SDK代码
-```
-# 腾讯云物联网开发平台 IoT Explorer
-git clone https://github.com/tencentyun/qcloud-iot-explorer-sdk-embedded-c.git
-
-# 腾讯云物联网通信 IoT Hub
-git clone https://github.com/tencentyun/qcloud-iot-sdk-embedded-c.git
-```
-##### 配置CMake并执行代码抽取
-在C-SDK根目录的 CMakeLists.txt 中配置为freertos平台，并开启代码抽取功能。其他配置选项可以根据需要修改：
-```
-set(BUILD_TYPE                  "release")
-set(PLATFORM 	                "freertos")
-set(EXTRACT_SRC ON)
-set(FEATURE_AT_TCP_ENABLED OFF)
-```
-Linux环境运行以下命令
-```
-mkdir build
-cd build
-cmake ..
-```
-即可在output/qcloud_iot_c_sdk中找到相关代码文件。
-
-##### 拷贝替换项目文件
-将output/qcloud_iot_c_sdk 文件夹拷贝替换本项目目录的components/qcloud_iot/qcloud_iot_c_sdk 文件夹
-qcloud_iot_c_sdk 目录介绍如下：
-include目录为SDK供用户使用的API及可变参数，其中config.h为根据编译选项生成的编译宏。API具体介绍请参考C-SDK文档**C-SDK_API及可变参数说明**。
-platform目录为平台相关的代码，可根据设备的具体情况进行修改适配。具体的函数说明请参考C-SDK文档**C-SDK_Porting跨平台移植概述**
-sdk_src为SDK的核心逻辑及协议相关代码，一般不需要修改，其中internal_inc为SDK内部使用的头文件。
+### 2.腾讯云物联 C-SDK 代码
+项目默认已经包含了一个腾讯云IoT Explorer C-SDK v3.1.2的代码。**如需要更新可参考文档底部说明**
 
 ### 3.工程目录结构
-在下载了ESP8266 RTOS SDK以及拷贝qcloud_iot_c_sdk之后，应该具有以下目录结构（部分文件没有展示出来）
+在下载了ESP8266 RTOS SDK之后，应该具有以下目录结构（部分文件没有展示出来）
 ```
 qcloud-iot-esp8266-demo/
 ├── components
@@ -75,12 +43,10 @@ qcloud-iot-esp8266-demo/
 │           │   ├── exports
 │           ├── platform
 │           │   ├── HAL_Device_freertos.c
-│           │   ├── HAL_DTLS_mbedtls.c
 │           │   ├── HAL_OS_freertos.c
 │           │   ├── HAL_TCP_lwip.c
 │           │   ├── HAL_Timer_freertos.c
 │           │   ├── HAL_TLS_mbedtls.c
-│           │   └── HAL_UDP_lwip.c
 │           └── sdk_src
 │               └── internal_inc
 ├── ESP8266_RTOS_SDK
@@ -153,6 +119,8 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 ### 6. WiFi配网说明
 工程里面包含了WiFi配网及设备绑定的代码，关于softAP配网协议及接口使用请看 [WiFi设备softAP配网](https://github.com/tencentyun/qcloud-iot-esp-wifi/blob/master/docs/WiFi%E8%AE%BE%E5%A4%87softAP%E9%85%8D%E7%BD%91v2.0.md)，关于SmartConfig配网协议及接口使用请看 [WiFi设备SmartConfig配网](https://github.com/tencentyun/qcloud-iot-esp-wifi/blob/master/docs/WiFi%E8%AE%BE%E5%A4%87SmartConfig%E9%85%8D%E7%BD%91.md)。对于支持乐鑫ESP-TOUCH协议的设备，建议优先选择SmartConfig配网。
 
+>注意：配网参考代码的函数get_reg_dev_info()里面包含了动态注册部分，简单演示了进入动态注册的条件，用户可根据自己情况调整。
+
 ### 7. ESP8266固件OTA
 工程里面包含了对ESP8266进行完整固件OTA的参考代码，编译时首先需要打开
 ```
@@ -163,3 +131,41 @@ CONFIG_QCLOUD_OTA_ESP_ENABLED=y
 
 首先使用flash工具更新具备OTA功能的固件（分区信息需要使用partitions_two_ota.bin），后续就可以将更新编译出来的esp8266-qcloud-iot.bin上传到腾讯云物联网平台进行固件升级的操作。
 如果想恢复到初始状态，除了更新bootloader.bin/esp8266-qcloud-iot.bin/partitions_two_ota.bin，还需要将ota_data_initial.bin烧写到flash的0xD000位置
+
+
+### 8. 更新腾讯云物联 C-SDK
+如果有需要更新SDK，可根据使用的平台按下面步骤下载更新：
+>注意：本项目使用的C-SDK在原始代码基础中进行了部分优化，替换之前需要仔细对比相同版本C-SDK并将修改集成进新代码
+
+##### 从GitHub下载C-SDK代码
+```
+# 腾讯云物联网开发平台 IoT Explorer
+git clone https://github.com/tencentyun/qcloud-iot-explorer-sdk-embedded-c.git
+
+# 腾讯云物联网通信 IoT Hub
+git clone https://github.com/tencentyun/qcloud-iot-sdk-embedded-c.git
+```
+##### 配置CMake并执行代码抽取
+在C-SDK根目录的 CMakeLists.txt 中配置为freertos平台，并开启代码抽取功能。其他配置选项可以根据需要修改：
+```
+set(BUILD_TYPE                  "release")
+set(PLATFORM 	                "freertos")
+set(EXTRACT_SRC ON)
+set(FEATURE_AT_TCP_ENABLED OFF)
+```
+Linux环境运行以下命令
+```
+mkdir build
+cd build
+cmake ..
+```
+即可在output/qcloud_iot_c_sdk中找到相关代码文件。
+
+##### 拷贝替换项目文件
+将output/qcloud_iot_c_sdk 文件夹拷贝替换本项目目录的components/qcloud_iot/qcloud_iot_c_sdk 文件夹
+qcloud_iot_c_sdk 目录介绍如下：
+include目录为SDK供用户使用的API及可变参数，其中config.h为根据编译选项生成的编译宏。API具体介绍请参考C-SDK文档**C-SDK_API及可变参数说明**。
+platform目录为平台相关的代码，可根据设备的具体情况进行修改适配。具体的函数说明请参考C-SDK文档**C-SDK_Porting跨平台移植概述**
+sdk_src为SDK的核心逻辑及协议相关代码，一般不需要修改，其中internal_inc为SDK内部使用的头文件。
+
+
