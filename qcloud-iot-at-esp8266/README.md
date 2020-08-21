@@ -3,7 +3,7 @@
 腾讯云IoT AT指令是一套针对使用通讯模组（2G/4G/NB/WIFI）接入腾讯云物联平台的定制AT指令集，如果通讯模组实现了该指令集，则设备接入和通讯更为简单，所需代码量更少。
 ESP8266作为IoT领域使用最广泛的一款WiFi芯片/模组，我们在其通用AT指令基础上，增加了腾讯云IoT AT指令集，形成一个定制的模组固件QCloud_IoT_AT_ESP8266，本文档介绍如何烧写及使用该固件。
 
-关于腾讯云IoT定制AT指令ESP8266版本的详细说明，包括MQTT/OTA/WiFi配网，请参考文档《腾讯云IoT AT指令集-WiFi-ESP8266》。关于ESP8266通用AT指令，请参考 [ESP-AT](https://github.com/espressif/esp-at)
+关于腾讯云IoT定制AT指令ESP8266版本的详细说明，包括MQTT/OTA/WiFi配网，请参考文档《腾讯云IoT-AT指令集-WiFi-ESP8266》。关于ESP8266通用AT指令，请参考 [ESP-AT](https://github.com/espressif/esp-at)
 
 ### 固件说明
 腾讯云IoT定制的AT模组固件QCloud_IoT_AT_ESP8266，适用于所有FLASH大小为2MB或者2MB以上的ESP8266模组。
@@ -17,11 +17,13 @@ AT串口使用UART0，默认的Tx为GPIO1，Rx为GPIO3。但因为ESP8266的UART
 用户可根据需要到**QCloud_IoT_AT_ESP8266_FW**目录下载。
 
 ### 烧写说明
-将固件bin文件烧写到ESP8266模组地址0就可以。
+我们提供了整合的单一固件，只需将固件bin文件烧写到ESP8266模组地址0就可以。
 
 在Windows下面建议使用乐鑫官方下载工具ESPFlashDownloadTool：
 
 ![](https://main.qcloudimg.com/raw/4a0950201609be4c0119e75d5ddfce97.png)
+
+>对于有需要单独烧写各个分区bin文件的，可以从压缩包**bin_files**文件夹取相关分区文件并按照对应的flash地址烧写
 
 ### GUI体验工具
 在目录**QCloud_IoT_AT_GUI_Dev_Tool**，提供了Windows环境的GUI调试工具IoTDevTool，用于体验和测试ESP8266模组定制AT固件，通过简单几步操作就可以完成连接腾讯云物联网服务并进行消息通信，更可以用腾讯连连小程序完成WiFi配网和添加设备操作，直接使用小程序与设备模组互动，具体请看该目录的README说明

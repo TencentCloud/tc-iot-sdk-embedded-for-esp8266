@@ -120,7 +120,6 @@ def gen_event_post_msg():
     print(">>> post event >>> voltage:", voltage)
     IEEventMsg = '''{
         "method": "event_post",
-        "version": "1.0",
         "eventId": "low_voltage",
         "params": {
             "voltage": %f
@@ -252,6 +251,9 @@ class SerialATClient(threading.Thread, metaclass=Singleton):
                     elif 'AT+TCPRDINFOSET=' in record:
                         cmd_seg = record.split(',')
                         record = cmd_seg[0]+','+cmd_seg[1]+',"**************",'+cmd_seg[3]
+                    elif 'AT+TCGWBIND=0' in record:
+                        cmd_seg = record.split(',')
+                        record = cmd_seg[0]+','+cmd_seg[1]+','+cmd_seg[2]+',"**************"\n'
                 except IndexError:
                     pass
 
@@ -692,6 +694,23 @@ class IoTBaseATCmd:
         else:
             return True
 
+    def publish_raw_msg(self, topic, qos, msg, hint=''):
+        # AT+TCMQTTPUBRAW="topic",QoS,msg_length
+        cmd = '''AT+TCMQTTPUBRAW="%s",%d,%d''' % (topic, qos, len(msg))
+        ok_reply = '>'
+        hint = cmd
+
+        if not self.serial.do_one_at_cmd(cmd, ok_reply, hint, self.err_list, self.cmd_timeout):
+            return False
+
+        hint = "AT+TCMQTTPUBRAW Send msg"
+        ok_reply = '+TCMQTTPUBRAW:OK'
+        if not self.serial.do_one_at_cmd(msg, ok_reply, hint, self.err_list, 20*self.cmd_timeout):
+            print('ERR: pub raw msg failed: ', msg)
+            return False
+        else:
+            return True
+
     def publish_msg(self, topic, qos, msg, hint=''):
         # AT+TCMQTTPUB="topic",QoS,"msg"
         cmd = '''AT+TCMQTTPUB="%s",%d,"%s"''' % (topic, qos, self.add_escapes(msg))
@@ -860,7 +879,7 @@ class IoTBaseATCmd:
             return False
 
         if state == 1:
-            self.ota_state = 'updating'
+            self.ota_state = 'waiting'
         return True
 
     def ota_read_fw_info(self):
@@ -959,7 +978,7 @@ class IoTBaseATCmd:
                 return False
 
             read_size += this_read_size
-            print("Total FW read:", read_size)
+            #print("Total FW read:", read_size)
             fw_file_out.write(data_raw[i:i+this_read_size])
 
         self.serial.hex_data_handler = self.serial.default_hexdata_handler
@@ -1130,6 +1149,39 @@ class IoTBaseATCmd:
 
         return self.serial.do_one_at_cmd(cmd, ok_reply, hint, self.err_list, self.cmd_timeout)
 
+    def gw_online_test(self):
+        cmd = 'AT+TCGWONLINE=?'
+        ok_reply = 'OK'
+        hint = cmd
+
+        return self.serial.do_one_at_cmd(cmd, ok_reply, hint, self.err_list, self.cmd_timeout)
+
+    def gw_online_query(self):
+        cmd = 'AT+TCGWONLINE?'
+        ok_reply = 'OK'
+        hint = cmd
+
+        return self.serial.do_one_at_cmd(cmd, ok_reply, hint, self.err_list, self.cmd_timeout)
+
+    def gw_online_setup(self, mode, sub_product, sub_dev_name):
+        # AT+TCGWONLINE=mode,"sub_product","sub_dev_name"
+        cmd = '''AT+TCGWONLINE=%d,"%s","%s"''' % (mode, sub_product, sub_dev_name)
+        ok_reply = '+TCGWONLINE:OK'
+        hint = cmd
+
+        return self.serial.do_one_at_cmd(cmd, ok_reply, hint, self.err_list, 2 * self.cmd_timeout)
+
+    def gw_bind_setup(self, mode, sub_product, sub_dev_name, sub_dev_key):
+        # AT+TCGWBIND=mode,"sub_product","sub_dev_name"
+        if mode == 0:
+            cmd = '''AT+TCGWBIND=%d,"%s","%s","%s"''' % (mode, sub_product, sub_dev_name, sub_dev_key)
+        else:
+            cmd = '''AT+TCGWBIND=%d,"%s","%s"''' % (mode, sub_product, sub_dev_name)
+        ok_reply = '+TCGWBIND:OK'
+        hint = cmd
+
+        return self.serial.do_one_at_cmd(cmd, ok_reply, hint, self.err_list, 3 * self.cmd_timeout)
+
 
 class IoTHubATTest(IoTBaseATCmd):
     def __init__(self, at_module='ESP8266'):
@@ -1192,8 +1244,10 @@ class IoTHubATTest(IoTBaseATCmd):
             send_cnt += 1
             if not ret:
                 fail_cnt += 1
+                time.sleep(0.2)
                 continue
 
+            time.sleep(2)
             recv_timeout_cnt = 0
             while True:
                 try:
@@ -1854,6 +1908,109 @@ class IoTHubATTest(IoTBaseATCmd):
         self.log_record("--------------------------------------------")
         return cmd_err_cnt, test_result
 
+    def test_case_gateway(self, test_case_cnt):
+        test_item = '网关指令测试'
+        self.log_record("###{}.{}".format(test_case_cnt, test_item))
+        cmd_err_cnt = 0
+
+        while True:
+            if not self.gw_online_test():
+                cmd_err_cnt = -1
+                test_result = "- ####" + test_item + ": 指令不存在"
+                break
+
+            self.serial.output_record(self.report_file)
+
+            try:
+                gw_devinfo = 'HUB-GW1'
+                gw_devinfo = config_file[gw_devinfo]
+                GW_Product_ID = gw_devinfo['GW_Product_ID']
+                GW_Device_Name = gw_devinfo['GW_Device_Name']
+                GW_Device_Key = gw_devinfo['GW_Device_Key']
+                Sub_Product_ID = gw_devinfo['Sub_Product_ID']
+                Sub_Device_Name = gw_devinfo['Sub_Device_Name']
+                Sub_Device_Key = gw_devinfo['Sub_Device_Key']
+            except:
+                self.log_record("##### 从配置文件解析网关设备信息失败")
+                cmd_err_cnt += 1
+                break
+
+            self.mqtt_disconnect()
+
+            if not self.devinfo_setup(GW_Product_ID, GW_Device_Name, GW_Device_Key, tls=1):
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 网关设备信息设置指令执行失败")
+                cmd_err_cnt += 1
+                break
+
+            if not self.mqtt_connect():
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 网关设备MQTT连接指令执行失败")
+                cmd_err_cnt += 1
+                break
+
+            if not self.is_mqtt_connected():
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 网关设备查询MQTT连接状态指令执行失败")
+                cmd_err_cnt += 1
+
+            if not self.gw_bind_setup(0, Sub_Product_ID, Sub_Device_Name, Sub_Device_Key):
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 绑定子设备指令执行失败")
+                cmd_err_cnt += 1
+                break
+
+            if not self.gw_online_setup(0, Sub_Product_ID, Sub_Device_Name):
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 代理子设备上线指令执行失败")
+                cmd_err_cnt += 1
+                break
+
+            topic = '''%s/%s/data''' % (Sub_Product_ID, Sub_Device_Name)
+            if not self.subscribe_topic(topic, 0, self.payload_queue_handler):
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 子设备MQTT订阅指令执行失败")
+                cmd_err_cnt += 1
+
+            send_payload = get_hub_test_msg()
+            if not self.publish_msg(topic, 1, send_payload):
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 子设备MQTT QoS1发布JSON消息指令执行失败")
+                cmd_err_cnt += 1
+            elif not self.wait_for_pub_msg_return(send_payload):
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 证书设备MQTT 接收JSON消息失败")
+                cmd_err_cnt += 1
+
+            if not self.gw_online_setup(1, Sub_Product_ID, Sub_Device_Name):
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 代理子设备下线指令执行失败")
+                cmd_err_cnt += 1
+                break
+
+            if not self.gw_bind_setup(1, Sub_Product_ID, Sub_Device_Name, Sub_Device_Key):
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 解绑子设备指令执行失败")
+                cmd_err_cnt += 1
+                break
+
+            if not self.mqtt_disconnect():
+                self.serial.output_record(self.report_file)
+                self.log_record("##### 证书设备MQTT断开连接指令执行失败")
+                cmd_err_cnt += 1
+
+            break
+
+        self.serial.output_record(self.report_file)
+        if cmd_err_cnt == 0:
+            test_result = "- ####" + test_item + ": 通过"
+        elif cmd_err_cnt > 0:
+            test_result = "- ####" + test_item + ": 失败"
+
+        self.log_record(test_result)
+        self.log_record("--------------------------------------------")
+        return cmd_err_cnt, test_result
+
     def iot_hub_verify_test(self, file_out, entire_test=False):
         if self.is_mqtt_connected():
             self.mqtt_disconnect()
@@ -1933,6 +2090,11 @@ class IoTHubATTest(IoTBaseATCmd):
 
                 test_case_cnt += 1
                 self.log_record("--------------------------------------------")
+                cmd_err_cnt, test_result = self.test_case_gateway(test_case_cnt)
+                extra_result_list.append(test_result)
+
+                test_case_cnt += 1
+                self.log_record("--------------------------------------------")
                 modinfo_err_cnt, modinfo_result = self.test_case_get_modinfo(test_case_cnt)
 
             # 结束测试
@@ -1990,6 +2152,13 @@ class IoTHubATTest(IoTBaseATCmd):
             return False
 
         update_timeout_cnt = 1
+        while self.ota_state == 'waiting' and update_timeout_cnt <= 100:
+            print('Wait for OTA update command...', update_timeout_cnt)
+            #self.get_sysram()
+            time.sleep(3)
+            update_timeout_cnt += 1
+
+        update_timeout_cnt = 1
         while self.ota_state == 'updating' and update_timeout_cnt <= 200:
             print('Wait for OTA update completed...', update_timeout_cnt)
             time.sleep(3)
@@ -2032,7 +2201,7 @@ class IoTExplorerATTest(IoTBaseATCmd):
         try:
             obj = json.loads(payload)
             method = obj["method"]
-        except KeyError:
+        except (json.decoder.JSONDecodeError, KeyError):
             print("Invalid template JSON：", topic, payload)
             return
 
@@ -2189,6 +2358,7 @@ class IoTExplorerATTest(IoTBaseATCmd):
 
         while True:
             if self.is_mqtt_connected():
+                self.ota_update_setup(0, "1.0.0")
                 self.mqtt_disconnect()
 
             ret = self.devinfo_setup(IE_Product_ID, IE_Device_Name, IE_Device_Key)
@@ -2196,6 +2366,10 @@ class IoTExplorerATTest(IoTBaseATCmd):
                 break
 
             ret = self.mqtt_connect()
+            if not ret:
+                break
+
+            ret = self.ota_update_setup(1, "1.0.0")
             if not ret:
                 break
 
@@ -2250,6 +2424,10 @@ class IoTExplorerATTest(IoTBaseATCmd):
                     self.post_event_msg(gen_event_post_msg())
 
             time.sleep(0.5)
+
+            ret = self.ota_update_setup(0, "1.0.0")
+            if not ret:
+                break
 
             self.unsubscribe_all_topics()
 
@@ -2583,7 +2761,7 @@ def main():
     test_mode_group = parser.add_argument_group('AT commands mode parameters')
     test_mode_group.add_argument(
             "--mode", "-m", required=True,
-            help="Test mode: CLI/MQTT/IOT/WIFI/HUB/IE/OTA/CERT")
+            help="Test mode: CLI/MQTT/IOT/WIFI/HUB/IE/OTA/CERT/GW")
 
     test_mode_group.add_argument(
         "--at_module", "-a",
@@ -2644,7 +2822,7 @@ def main():
     prdinfo = args.prdinfo.upper()
     config_file_path = args.config_file_path
 
-    if not test_mode in ['CLI', 'MQTT', 'IOT', 'WIFI', 'HUB', 'OTA', 'IE', 'CERT']:
+    if not test_mode in ['CLI', 'MQTT', 'IOT', 'WIFI', 'HUB', 'OTA', 'IE', 'CERT', 'GW']:
         print("Invalid test mode", test_mode)
         return
 
@@ -2755,6 +2933,11 @@ def main():
         # IoT Hub cert device test
         if test_mode == 'CERT':
             IoTHubATTest(at_module).test_case_cert(0)
+            break
+
+        # IoT Hub gateway device test
+        if test_mode == 'GW':
+            IoTHubATTest(at_module).test_case_gateway(0)
             break
 
         # IoT Explorer test
