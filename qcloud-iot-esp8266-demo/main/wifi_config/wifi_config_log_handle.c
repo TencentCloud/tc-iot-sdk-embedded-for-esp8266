@@ -28,10 +28,12 @@
 
 /************** WiFi config error msg collect and post feature ******************/
 
+#ifdef WIFI_LOG_UPLOAD
 /* FreeRTOS msg queue */
 static void *g_dev_log_queue = NULL;
 #define LOG_QUEUE_SIZE 10
 #define LOG_ITEM_SIZE  128
+#endif
 
 int init_dev_log_queue(void)
 {
