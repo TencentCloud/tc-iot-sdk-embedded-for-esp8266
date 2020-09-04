@@ -36,20 +36,20 @@ typedef struct _RegionDomain_ {
 
 /*mqtt domain*/
 static RegionDomain sg_iot_mqtt_domain[] = {
-    {.region = "china", .domain = QCLOUD_IOT_MQTT_DIRECT_DOMAIN},    /* China */
-    {.region = "us-east", .domain = QCLOUD_IOT_MQTT_US_EAST_DOMAIN}, /* Eastern US*/
+    {.region = "ap-guangzhou", .domain = QCLOUD_IOT_MQTT_DIRECT_DOMAIN},    /* China */
+    {.region = "na-ashburn", .domain = QCLOUD_IOT_MQTT_US_EAST_DOMAIN}, /* Eastern US*/
 };
 
 /*dynreg domain*/
 static RegionDomain sg_iot_dyn_reg_domain[] = {
-    {.region = "china", .domain = DYN_REG_SERVER_URL},           /* China */
-    {.region = "us-east", .domain = DYN_REG_SERVER_US_EAST_URL}, /* Eastern US*/
+    {.region = "ap-guangzhou", .domain = DYN_REG_SERVER_URL},           /* China */
+    {.region = "na-ashburn", .domain = DYN_REG_SERVER_US_EAST_URL}, /* Eastern US*/
 };
 
 /*log domain*/
 static RegionDomain sg_iot_log_domain[] = {
-    {.region = "china", .domain = LOG_UPLOAD_SERVER_DOMAIN},           /* China */
-    {.region = "us-east", .domain = LOG_UPLOAD_SERVER_US_EAST_DOMAIN}, /* Eastern US*/
+    {.region = "ap-guangzhou", .domain = LOG_UPLOAD_SERVER_DOMAIN},           /* China */
+    {.region = "na-ashburn", .domain = LOG_UPLOAD_SERVER_US_EAST_DOMAIN}, /* Eastern US*/
 };
 
 #ifndef AUTH_WITH_NOTLS

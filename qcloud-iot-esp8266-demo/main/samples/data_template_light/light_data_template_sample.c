@@ -248,9 +248,9 @@ static void OnActionCallback(void *pClient, const char *pClientToken, DeviceActi
     Log_i("do action: light blink");
     for (i = 0; i < 6; i++) {
         if (i % 2)
-            set_relay_led_state(RELAY_LED_ON);
+            set_relay_led_state(LED_ON);
         else
-            set_relay_led_state(RELAY_LED_OFF);
+            set_relay_led_state(LED_OFF);
         HAL_SleepMs(period * 1000);
     }
 
@@ -344,7 +344,7 @@ static int _setup_connect_init_params(TemplateInitParams *initParams)
         return ret;
     }
 
-    initParams->region        = sg_devInfo.region;
+    initParams->region        = sg_devInfo.product_region;
     initParams->product_id    = sg_devInfo.product_id;
     initParams->device_name   = sg_devInfo.device_name;
     initParams->device_secret = sg_devInfo.device_secret;
@@ -451,9 +451,9 @@ static void deal_down_stream_user_logic(void *client, ProductDataDefine *light)
 
     /** hardware control **/
     if (light->m_light_switch) {
-        set_relay_led_state(RELAY_LED_ON);
+        set_relay_led_state(LED_ON);
     } else {
-        set_relay_led_state(RELAY_LED_OFF);
+        set_relay_led_state(LED_OFF);
     }
 
 #ifdef EVENT_POST_ENABLED

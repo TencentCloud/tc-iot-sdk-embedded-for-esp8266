@@ -110,6 +110,8 @@ static esp_err_t _esp_event_handler(void* ctx, system_event_t* event)
     return ESP_OK;
 }
 
+
+
 static void esp_wifi_initialise(void)
 {
     tcpip_adapter_init();
@@ -157,11 +159,43 @@ void setup_sntp(void )
     tzset();
 }
 
+int get_stored_wifi_config(wifi_config_t *wifi_config)
+{
+   esp_err_t rc;
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    rc                     = esp_wifi_init(&cfg);
+    if (rc != ESP_OK) {
+        Log_e("esp_wifi_init failed: %d", rc);
+        return rc;
+    }
+
+    rc = esp_wifi_set_storage(WIFI_STORAGE_FLASH);
+    if (rc != ESP_OK) {
+        Log_e("esp_wifi_set_storage failed: %d", rc);
+        return rc;
+    }
+
+    rc = esp_wifi_get_config(ESP_IF_WIFI_STA, wifi_config);
+    if (rc != ESP_OK) {
+        Log_e("esp_wifi_get_config failed: %d", rc);
+        return rc;
+    }
+
+    return 0;
+
+}
+
 void qcloud_demo_task(void* parm)
 {
     bool wifi_connected = false;
     Log_i("qcloud_demo_task start");
 
+    // just demo how to get stored wifi config
+    wifi_config_t wifi_config = {0};
+    get_stored_wifi_config(&wifi_config);
+    Log_i("stored config: ssid: %s psw: %s", wifi_config.sta.ssid, wifi_config.sta.password);    
+    
 #if CONFIG_WIFI_CONFIG_ENABLED
     /* to use WiFi config and device binding with Wechat mini program */
     int wifi_config_state;

@@ -56,6 +56,9 @@ static const char *g_err_log[] = {
     "SRV socket send error!",       /* ERR_SOCKET_SEND = 22,*/
     "MQTT Token send error!",       /* ERR_TOKEN_SEND = 23,*/
     "MQTT Token reply error!",      /* ERR_TOKEN_REPLY = 24,*/
+    "MQTT Token recv timeout!",     /* ERR_TOKEN_RECV = 25,*/
+    "Product Region fault error!",  /* ERR_REGION_FAULT = 26, */
+    "Device Info error!",           /* ERR_DEVICE_INFO = 27,*/
 };
 
 typedef struct {

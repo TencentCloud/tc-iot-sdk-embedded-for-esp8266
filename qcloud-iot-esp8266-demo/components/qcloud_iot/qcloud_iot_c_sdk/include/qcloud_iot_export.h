@@ -55,7 +55,7 @@ extern "C" {
 #define MAX_SIZE_OF_DEVICE_SECRET_FILE_NAME (128)
 
 /* MAX size of region len */
-#define MAX_SIZE_OF_REGION (64)
+#define MAX_SIZE_OF_PRODUCT_REGION (64)
 
 /* MAX num of subdevice */
 #define MAX_NUM_SUB_DEV (50)
@@ -83,7 +83,7 @@ typedef struct {
 #ifdef DEV_DYN_REG_ENABLED
     char product_secret[MAX_SIZE_OF_PRODUCT_SECRET + 1];
 #endif
-    char region[MAX_SIZE_OF_REGION];
+    char product_region[MAX_SIZE_OF_PRODUCT_REGION + 1];
 
     eDevType dev_type;
 } DeviceInfo;

@@ -34,10 +34,14 @@
 #include "wifi_config_internal.h"
 #include "board_ops.h"
 
-/* task control flags */
+/* task control flags and counters */
 static bool sg_mqtt_task_run = false;
 static bool sg_comm_task_run = false;
 static bool sg_log_task_run  = false;
+
+static int sg_mqtt_task_cnt = 0;
+static int sg_comm_task_cnt = 0;
+static int sg_log_task_cnt  = 0;
 
 /* wifi config state flag */
 static bool sg_wifi_config_success = false;
@@ -46,13 +50,22 @@ static bool sg_token_received      = false;
 //============================ MQTT communication functions begin ===========================//
 
 #define MAX_TOKEN_LENGTH 32
-static char sg_token_str[MAX_TOKEN_LENGTH + 4] = {0};
+static char sg_token_str[MAX_TOKEN_LENGTH + 1] = {0};
+static char sg_region_str[MAX_SIZE_OF_PRODUCT_REGION + 1] = {"ap-guangzhou"};
+static DeviceInfo sg_device_info = {0};
 
 typedef struct TokenHandleData {
     bool sub_ready;
     bool send_ready;
     int  reply_code;
 } TokenHandleData;
+
+
+// user can customize device storage function here
+static int _load_device_info(DeviceInfo *dev_info)
+{
+    return HAL_GetDevInfo(dev_info);
+}
 
 static void _mqtt_event_handler(void *pclient, void *handle_context, MQTTEventMsg *msg)
 {
@@ -165,7 +178,7 @@ static void _on_message_callback(void *pClient, MQTTMessage *message, void *user
 }
 
 // subscrib MQTT topic
-static int subscribe_topic_wait_result(void *client, DeviceInfo *dev_info, TokenHandleData *app_data)
+static int _subscribe_topic_wait_result(void *client, DeviceInfo *dev_info, TokenHandleData *app_data)
 {
     char topic_name[128] = {0};
     // int size = HAL_Snprintf(topic_name, sizeof(topic_name), "%s/%s/data", dev_info->product_id,
@@ -236,7 +249,7 @@ static int _publish_token_msg(void *client, DeviceInfo *dev_info, char *token_st
 }
 
 // send token data via mqtt publishing
-int send_token_wait_reply(void *client, DeviceInfo *dev_info, TokenHandleData *app_data)
+static int _send_token_wait_reply(void *client, DeviceInfo *dev_info, TokenHandleData *app_data)
 {
     int ret      = 0;
     int wait_cnt = 20;
@@ -250,7 +263,14 @@ int send_token_wait_reply(void *client, DeviceInfo *dev_info, TokenHandleData *a
     if (!sg_token_received) {
         Log_e("Wait for token data timeout");
         PUSH_LOG("Wait for token data timeout");
-        return QCLOUD_ERR_INVAL;
+        return ERR_TOKEN_RECV;
+    }
+
+    // compare region of user and region of product
+    if (strncmp(dev_info->product_region, sg_region_str, MAX_SIZE_OF_PRODUCT_REGION)) {
+        Log_e("Region fault: %s != %s", dev_info->product_region, sg_region_str);
+        PUSH_LOG("Region fault: %s != %s", dev_info->product_region, sg_region_str);
+        return ERR_REGION_FAULT;
     }
 
     wait_cnt = 3;
@@ -283,28 +303,29 @@ publish_token:
     if (!app_data->send_ready) {
         Log_e("pub token timeout");
         PUSH_LOG("pub token timeout");
-        ret = QCLOUD_ERR_FAILURE;
+        ret = QCLOUD_ERR_MQTT_UNKNOWN;
     }
 
     return ret;
 }
 
 // get the device info or do device dynamic register
-int get_reg_dev_info(DeviceInfo *dev_info)
+static int _get_reg_dev_info(DeviceInfo *dev_info)
 {
-    int ret = HAL_GetDevInfo(dev_info);
-    if (ret) {
-        Log_e("HAL_GetDevInfo error: %d", ret);
-        PUSH_LOG("HAL_GetDevInfo error: %d", ret);
-        return ret;
+    if (strlen(dev_info->product_id) == 0 || 
+            strlen(dev_info->device_name) == 0) {
+        Log_e("invalid product_id or device_name");
+        PUSH_LOG("invalid product_id or device_name");
+        return -1;    
     }
 
-    // 简单演示进入动态注册的条件，用户可根据自己情况调整
-    // 如果 dev_info->device_secret == "YOUR_IOT_PSK", 表示设备没有有效的PSK
-    // 并且 dev_info->product_secret != "YOUR_PRODUCT_SECRET", 表示具备产品密钥，可以进行动态注册
+    // just demo condition of dynamic register device
+    // device_secret == "YOUR_IOT_PSK" and product_secret != "YOUR_PRODUCT_SECRET"
+    // user can customize different policy here
     if (!strncmp(dev_info->device_secret, "YOUR_IOT_PSK", MAX_SIZE_OF_DEVICE_SECRET) &&
         strncmp(dev_info->product_secret, "YOUR_PRODUCT_SECRET", MAX_SIZE_OF_PRODUCT_SECRET)) {
-        ret = IOT_DynReg_Device(dev_info);
+
+        int ret = IOT_DynReg_Device(dev_info);
         if (ret) {
             Log_e("dynamic register device failed: %d", ret);
             PUSH_LOG("dynamic register device failed: %d", ret);
@@ -326,12 +347,13 @@ int get_reg_dev_info(DeviceInfo *dev_info)
 }
 
 // setup mqtt connection and return client handle
-void *setup_mqtt_connect(DeviceInfo *dev_info, TokenHandleData *app_data)
+static void *_setup_mqtt_connect(DeviceInfo *dev_info, TokenHandleData *app_data)
 {
     MQTTInitParams init_params       = DEFAULT_MQTTINIT_PARAMS;
     init_params.device_name          = dev_info->device_name;
     init_params.product_id           = dev_info->product_id;
     init_params.device_secret        = dev_info->device_secret;
+    init_params.region               = dev_info->product_region;
     init_params.event_handle.h_fp    = _mqtt_event_handler;
     init_params.event_handle.context = (void *)app_data;
 
@@ -367,11 +389,12 @@ void *setup_mqtt_connect(DeviceInfo *dev_info, TokenHandleData *app_data)
 int mqtt_send_token(void)
 {
     // get the device info or do device dynamic register
-    DeviceInfo dev_info;
-    int        ret = get_reg_dev_info(&dev_info);
+    DeviceInfo *dev_info = &sg_device_info;
+    int              ret = _get_reg_dev_info(dev_info);
     if (ret) {
         Log_e("Get device info failed: %d", ret);
         PUSH_LOG("Get device info failed: %d", ret);
+        push_error_log(ERR_DEVICE_INFO, ret);
         return ret;
     }
 
@@ -382,16 +405,16 @@ int mqtt_send_token(void)
     app_data.reply_code = 404;
 
     // mqtt connection
-    void *client = setup_mqtt_connect(&dev_info, &app_data);
+    void *client = _setup_mqtt_connect(dev_info, &app_data);
     if (client == NULL) {
         return QCLOUD_ERR_MQTT_NO_CONN;
     } else {
-        Log_i("Device %s/%s connect success", dev_info.product_id, dev_info.device_name);
-        PUSH_LOG("Device %s/%s connect success", dev_info.product_id, dev_info.device_name);
+        Log_i("Device %s/%s connect success", dev_info->product_id, dev_info->device_name);
+        PUSH_LOG("Device %s/%s connect success", dev_info->product_id, dev_info->device_name);
     }
 
     // subscribe token reply topic
-    ret = subscribe_topic_wait_result(client, &dev_info, &app_data);
+    ret = _subscribe_topic_wait_result(client, dev_info, &app_data);
     if (ret < 0) {
         Log_w("Subscribe topic failed: %d", ret);
         PUSH_LOG("Subscribe topic failed: %d", ret);
@@ -400,13 +423,22 @@ int mqtt_send_token(void)
     // publish token msg and wait for reply
     int retry_cnt = 2;
     do {
-        ret = send_token_wait_reply(client, &dev_info, &app_data);
+        ret = _send_token_wait_reply(client, dev_info, &app_data);
 
         IOT_MQTT_Yield(client, 1000);
-    } while (ret && retry_cnt-- && sg_mqtt_task_run);
+    } while (ret && ret != ERR_REGION_FAULT && retry_cnt-- && sg_mqtt_task_run);
 
-    if (ret)
-        push_error_log(ERR_TOKEN_SEND, ret);
+    if (ret) {
+        switch (ret) {
+            case ERR_TOKEN_RECV:
+            case ERR_REGION_FAULT:
+                push_error_log(ret, QCLOUD_ERR_INVAL);
+                break;
+            default:
+                push_error_log(ERR_TOKEN_SEND, ret);
+                break;
+        }
+    }
 
     IOT_MQTT_Destroy(&client);
 
@@ -419,29 +451,29 @@ int mqtt_send_token(void)
 //============================ MQTT communication functions end ===========================//
 
 //============================ Qcloud app TCP/UDP functions begin ===========================//
+
+/* reply data to app/mini program
+ * return -1, error and can not proceed
+ * return 1,  error but can proceed
+ * return 0,  everything all right
+ */
 static int app_reply_dev_info(comm_peer_t *peer)
 {
-    int        ret;
-    DeviceInfo devinfo;
-    ret = HAL_GetDevInfo(&devinfo);
-    if (ret) {
-        Log_e("load dev info failed: %d", ret);
-        app_send_error_log(peer, CUR_ERR, ERR_APP_CMD, ret);
-        return -1;
-    }
-
+    int ret;
     cJSON *reply_json = cJSON_CreateObject();
     cJSON_AddNumberToObject(reply_json, "cmdType", (int)CMD_DEVICE_REPLY);
-    cJSON_AddStringToObject(reply_json, "productId", devinfo.product_id);
-    cJSON_AddStringToObject(reply_json, "deviceName", devinfo.device_name);
-    cJSON_AddStringToObject(reply_json, "protoVersion", SOFTAP_BOARDING_VERSION);
+    cJSON_AddStringToObject(reply_json, "productId", sg_device_info.product_id);
+    cJSON_AddStringToObject(reply_json, "deviceName", sg_device_info.device_name);
+    cJSON_AddStringToObject(reply_json, "productRegion", sg_device_info.product_region);
+    cJSON_AddStringToObject(reply_json, "protoVersion", WIFI_CONFIG_PROTO_VERSION);
 
-    char json_str[128] = {0};
+    char json_str[256] = {0};
     if (0 == cJSON_PrintPreallocated(reply_json, json_str, sizeof(json_str), 0)) {
-        Log_e("cJSON_PrintPreallocated failed!");
         cJSON_Delete(reply_json);
-        app_send_error_log(peer, CUR_ERR, ERR_APP_CMD, ERR_JSON_PRINT);
-        return -1;
+        Log_e("cJSON_PrintPreallocated failed!");
+        PUSH_LOG("cJSON_PrintPreallocated failed!");
+        push_error_log(ERR_APP_CMD, ERR_JSON_PRINT);
+        return 1;
     }
     /* append msg delimiter */
     strcat(json_str, "\r\n");
@@ -452,8 +484,9 @@ udp_resend:
     ret = sendto(peer->socket_id, json_str, strlen(json_str), 0, peer->socket_addr, peer->addr_len);
     if (ret < 0) {
         Log_e("send error: %s", strerror(errno));
+        PUSH_LOG("send error: %s", strerror(errno));
         push_error_log(ERR_SOCKET_SEND, errno);
-        return -1;
+        return 1;
     }
     /* UDP packet could be lost, send it again */
     /* NOT necessary for TCP */
@@ -480,9 +513,16 @@ static int app_handle_recv_data(comm_peer_t *peer, char *pdata, int len)
     cJSON *cmd_json = cJSON_GetObjectItem(root, "cmdType");
     if (cmd_json == NULL) {
         Log_e("Invalid cmd JSON: %s", pdata);
+        PUSH_LOG("Invalid cmd JSON: %s", pdata);
         cJSON_Delete(root);
         app_send_error_log(peer, CUR_ERR, ERR_APP_CMD, ERR_APP_CMD_JSON_FORMAT);
         return -1;
+    }
+
+    cJSON *region_json = cJSON_GetObjectItem(root, "region");
+    if (region_json) {
+        memset(sg_region_str, 0, sizeof(sg_region_str));
+        strncpy(sg_region_str, region_json->valuestring, MAX_SIZE_OF_PRODUCT_REGION);
     }
 
     int cmd = cmd_json->valueint;
@@ -492,21 +532,19 @@ static int app_handle_recv_data(comm_peer_t *peer, char *pdata, int len)
             cJSON *token_json = cJSON_GetObjectItem(root, "token");
 
             if (token_json) {
-                sg_token_received = true;
                 memset(sg_token_str, 0, sizeof(sg_token_str));
                 strncpy(sg_token_str, token_json->valuestring, MAX_TOKEN_LENGTH);
+                sg_token_received = true;
+                cJSON_Delete(root);
 
-                ret = app_reply_dev_info(peer);
+                app_reply_dev_info(peer);
 
-                /* 0: need to wait for next cmd
-                 * 1: Everything OK and we've finished the job */
-                if (ret)
-                    return 0;
-                else
-                    return 1;
+                /* 1: Everything OK and we've finished the job */
+                return 1;
             } else {
                 cJSON_Delete(root);
-                Log_e("invlaid token!");
+                Log_e("invlaid token: %s", pdata);
+                PUSH_LOG("invlaid token: %s", pdata);
                 app_send_error_log(peer, CUR_ERR, ERR_APP_CMD, ERR_APP_CMD_AP_INFO);
                 return -1;
             }
@@ -519,9 +557,9 @@ static int app_handle_recv_data(comm_peer_t *peer, char *pdata, int len)
             cJSON *token_json = cJSON_GetObjectItem(root, "token");
 
             if (ssid_json && psw_json && token_json) {
-                sg_token_received = true;
                 memset(sg_token_str, 0, sizeof(sg_token_str));
                 strncpy(sg_token_str, token_json->valuestring, MAX_TOKEN_LENGTH);
+                sg_token_received = true;
 
                 app_reply_dev_info(peer);
                 // sleep a while before changing to STA mode
@@ -534,7 +572,7 @@ static int app_handle_recv_data(comm_peer_t *peer, char *pdata, int len)
                 if (ret) {
                     Log_e("wifi_sta_connect failed: %d", ret);
                     PUSH_LOG("wifi_sta_connect failed: %d", ret);
-                    app_send_error_log(peer, CUR_ERR, ERR_WIFI_AP_STA, ret);
+                    push_error_log(ERR_WIFI_AP_STA, ret);
                     cJSON_Delete(root);
                     return -1;
                 }
@@ -546,6 +584,7 @@ static int app_handle_recv_data(comm_peer_t *peer, char *pdata, int len)
             } else {
                 cJSON_Delete(root);
                 Log_e("invlaid ssid/password/token!");
+                PUSH_LOG("invlaid ssid/password/token!");
                 app_send_error_log(peer, CUR_ERR, ERR_APP_CMD, ERR_APP_CMD_AP_INFO);
                 return -1;
             }
@@ -558,7 +597,8 @@ static int app_handle_recv_data(comm_peer_t *peer, char *pdata, int len)
 
         default: {
             cJSON_Delete(root);
-            Log_e("Unknown cmd: %d", cmd);
+            Log_e("invalid cmd: %s", pdata);
+            PUSH_LOG("invalid cmd: %s", pdata);
             app_send_error_log(peer, CUR_ERR, ERR_APP_CMD, ERR_APP_CMD_JSON_FORMAT);
         } break;
     }
@@ -570,6 +610,7 @@ static void udp_server_task(void *pvParameters)
 {
     int  ret, server_socket = -1;
     char addr_str[128] = {0};
+    sg_comm_task_cnt++;
 
     /* stay longer than 5 minutes to handle error log */
     uint32_t server_count = WAIT_CNT_5MIN_SECONDS / SELECT_WAIT_TIME_SECONDS + 5;
@@ -660,11 +701,12 @@ static void udp_server_task(void *pvParameters)
                 if (ret == 1) {
                     Log_w("Finish app cmd handle");
                     PUSH_LOG("Finish app cmd handle");
-                    break;
                 }
+                break;
 
-                get_and_post_error_log(&peer_client);
-                continue;
+                // only one round of data recv/send
+                //get_and_post_error_log(&peer_client);
+                //continue;
             }
         } else if (0 == ret) {
             select_err_cnt = 0;
@@ -695,6 +737,7 @@ end_of_task:
 
     sg_comm_task_run = false;
     Log_i("UDP server task quit");
+    sg_comm_task_cnt--;
     vTaskDelete(NULL);
 }
 
@@ -702,21 +745,23 @@ static void softAP_mqtt_task(void *pvParameters)
 {
     uint8_t  led_state    = 0;
     uint32_t server_count = WIFI_CONFIG_WAIT_TIME_MS / SOFT_AP_BLINK_TIME_MS;
+    sg_mqtt_task_cnt++;
+
     while (sg_mqtt_task_run && (--server_count)) {
         int state = wifi_wait_event(SOFT_AP_BLINK_TIME_MS);
         if (state == EVENT_WIFI_CONNECTED) {
             Log_d("WiFi Connected to ap");
-            set_wifi_led_state(WIFI_LED_ON);
+            set_wifi_led_state(LED_ON);
 
             int ret = mqtt_send_token();
             if (ret) {
                 Log_e("SoftAP: WIFI_MQTT_CONNECT_FAILED: %d", ret);
                 PUSH_LOG("SoftAP: WIFI_MQTT_CONNECT_FAILED: %d", ret);
-                set_wifi_led_state(WIFI_LED_OFF);
+                set_wifi_led_state(LED_OFF);
             } else {
                 Log_i("SoftAP: WIFI_MQTT_CONNECT_SUCCESS");
                 PUSH_LOG("SoftAP: WIFI_MQTT_CONNECT_SUCCESS");
-                set_wifi_led_state(WIFI_LED_ON);
+                set_wifi_led_state(LED_ON);
                 sg_wifi_config_success = true;
             }
 
@@ -735,7 +780,7 @@ static void softAP_mqtt_task(void *pvParameters)
         if (!sg_comm_task_run && !sg_token_received) {
             Log_e("comm server task error!");
             PUSH_LOG("comm server task error");
-            set_wifi_led_state(WIFI_LED_OFF);
+            set_wifi_led_state(LED_OFF);
             break;
         }
     }
@@ -744,7 +789,7 @@ static void softAP_mqtt_task(void *pvParameters)
         Log_w("SoftAP: TIMEOUT");
         PUSH_LOG("SoftAP: TIMEOUT");
         push_error_log(ERR_BD_STOP, ERR_SC_EXEC_TIMEOUT);
-        set_wifi_led_state(WIFI_LED_OFF);
+        set_wifi_led_state(LED_OFF);
     }
 
     wifi_stop_softap();
@@ -753,36 +798,48 @@ static void softAP_mqtt_task(void *pvParameters)
     sg_comm_task_run = false;
     sg_mqtt_task_run = false;
     Log_i("softAP mqtt task quit");
+    sg_mqtt_task_cnt--;
     vTaskDelete(NULL);
 }
 
 int start_softAP(const char *ssid, const char *psw, uint8_t ch)
 {
+    sg_log_task_run = false;
+    sg_mqtt_task_run = false;
+    sg_comm_task_run = false;
+
+    while (sg_comm_task_cnt > 0 || sg_mqtt_task_cnt > 0 || sg_log_task_cnt > 0) {
+        Log_w("Wait for last config finish: %d %d %d", sg_comm_task_cnt, sg_mqtt_task_cnt, sg_log_task_cnt);
+        sg_log_task_run = false;
+        sg_mqtt_task_run = false;
+        sg_comm_task_run = false;
+        HAL_SleepMs(1000);
+    }
+
     init_dev_log_queue();
+    init_error_log_queue();
     Log_i("enter softAP mode");
     PUSH_LOG("start softAP: %s", ssid);
 
-    sg_log_task_run = false;
-    if (sg_comm_task_run || sg_mqtt_task_run) {
-        Log_w("Last config not finished, wait for a while!");
-        sg_mqtt_task_run = false;
-        sg_comm_task_run = false;
-        HAL_SleepMs(5000);
-    }
-
-    sg_mqtt_task_run       = false;
-    sg_comm_task_run       = false;
     sg_wifi_config_success = false;
     sg_token_received      = false;
     memset(sg_token_str, 0, sizeof(sg_token_str));
 
-    init_error_log_queue();
+    int ret = _load_device_info(&sg_device_info);
+    if (ret) {
+        Log_e("load device info failed: %d", ret);
+        PUSH_LOG("load device info failed: %d", ret);
+        push_error_log(ERR_DEVICE_INFO, ret);
+        ret = ERR_DEVICE_INFO;
+        goto err_exit;
+    }
 
-    int ret = wifi_ap_init(ssid, psw, ch);
+    ret = wifi_ap_init(ssid, psw, ch);
     if (ret) {
         Log_e("wifi_ap_init failed: %d", ret);
         PUSH_LOG("wifi_ap_init failed: %d", ret);
         push_error_log(ERR_WIFI_AP_INIT, ret);
+        ret = ERR_WIFI_AP_INIT;
         goto err_exit;
     }
 
@@ -791,6 +848,7 @@ int start_softAP(const char *ssid, const char *psw, uint8_t ch)
         Log_e("wifi_start_running failed: %d", ret);
         PUSH_LOG("wifi_start_running failed: %d", ret);
         push_error_log(ERR_WIFI_START, ret);
+        ret = ERR_WIFI_START;
         goto err_exit;
     }
 
@@ -801,6 +859,7 @@ int start_softAP(const char *ssid, const char *psw, uint8_t ch)
         Log_e("create comm_server_task failed: %d", ret);
         PUSH_LOG("create comm_server_task failed: %d", ret);
         push_error_log(ERR_OS_TASK, ret);
+        ret = ERR_OS_TASK;
         goto err_exit;
     }
 
@@ -810,6 +869,7 @@ int start_softAP(const char *ssid, const char *psw, uint8_t ch)
         Log_e("create softAP_mqtt_task failed: %d", ret);
         PUSH_LOG("create softAP_mqtt_task failed: %d", ret);
         push_error_log(ERR_OS_TASK, ret);
+        ret = ERR_OS_TASK;
         goto err_exit;
     }
 
@@ -823,7 +883,7 @@ err_exit:
     sg_mqtt_task_run = false;
     sg_comm_task_run = false;
 
-    return QCLOUD_ERR_FAILURE;
+    return ret;
 }
 
 void stop_softAP(void)
@@ -839,7 +899,7 @@ void stop_softAP(void)
     sg_comm_task_run = false;
     sg_log_task_run  = false;
 
-    set_wifi_led_state(WIFI_LED_OFF);
+    set_wifi_led_state(LED_OFF);
     wifi_stop_softap();
 }
 
@@ -847,31 +907,25 @@ static void smartconfig_mqtt_task(void *parm)
 {
     uint32_t wait_count = WIFI_CONFIG_WAIT_TIME_MS / SMART_CONFIG_BLINK_TIME_MS;
     uint8_t  led_state  = 0;
-
-    int ret = wifi_start_smartconfig();
-    if (ret) {
-        Log_e("start smartconfig failed: %d", ret);
-        PUSH_LOG("start smartconfig failed: %d", ret);
-        push_error_log(ERR_SC_START, ret);
-        return;
-    }
+    int      ret;
+    sg_mqtt_task_cnt++;
 
     while (sg_mqtt_task_run && (--wait_count)) {
         int state = wifi_wait_event(SMART_CONFIG_BLINK_TIME_MS);
 
         if (state == EVENT_WIFI_CONNECTED) {
             Log_d("WiFi Connected to AP");
-            set_wifi_led_state(WIFI_LED_ON);
+            set_wifi_led_state(LED_ON);
 
             ret = mqtt_send_token();
             if (ret) {
                 Log_e("SmartConfig: WIFI_MQTT_CONNECT_FAILED: %d", ret);
                 PUSH_LOG("SmartConfig: WIFI_MQTT_CONNECT_FAILED: %d", ret);
-                set_wifi_led_state(WIFI_LED_OFF);
+                set_wifi_led_state(LED_OFF);
             } else {
                 Log_i("SmartConfig: WIFI_MQTT_CONNECT_SUCCESS");
                 PUSH_LOG("SmartConfig: WIFI_MQTT_CONNECT_SUCCESS");
-                set_wifi_led_state(WIFI_LED_ON);
+                set_wifi_led_state(LED_ON);
                 sg_wifi_config_success = true;
             }
 
@@ -881,7 +935,7 @@ static void smartconfig_mqtt_task(void *parm)
             Log_w("smartconfig over");
             PUSH_LOG("smartconfig over");
             push_error_log(ERR_BD_STOP, ERR_SC_APP_STOP);
-            set_wifi_led_state(WIFI_LED_OFF);
+            set_wifi_led_state(LED_OFF);
             break;
         } else if (state == EVENT_WIFI_DISCONNECTED) {
             // reduce the wait time as it meet disconnect
@@ -897,7 +951,7 @@ static void smartconfig_mqtt_task(void *parm)
         if (!sg_comm_task_run && !sg_token_received) {
             Log_e("comm server task error!");
             PUSH_LOG("comm server task error");
-            set_wifi_led_state(WIFI_LED_OFF);
+            set_wifi_led_state(LED_OFF);
             break;
         }
     }
@@ -906,7 +960,7 @@ static void smartconfig_mqtt_task(void *parm)
         Log_w("SmartConfig: TIMEOUT");
         PUSH_LOG("SmartConfig: TIMEOUT");
         push_error_log(ERR_BD_STOP, ERR_SC_EXEC_TIMEOUT);
-        set_wifi_led_state(WIFI_LED_OFF);
+        set_wifi_led_state(LED_OFF);
     }
 
     wifi_stop_smartconfig();
@@ -915,36 +969,48 @@ static void smartconfig_mqtt_task(void *parm)
     sg_comm_task_run = false;
     sg_mqtt_task_run = false;
     Log_i("smartconfig task quit");
+    sg_mqtt_task_cnt--;
     vTaskDelete(NULL);
 }
 
 int start_smartconfig(void)
 {
+    sg_log_task_run = false;
+    sg_mqtt_task_run = false;
+    sg_comm_task_run = false;
+
+    while (sg_comm_task_cnt > 0 || sg_mqtt_task_cnt > 0 || sg_log_task_cnt > 0) {
+        Log_w("Wait for last config finish: %d %d %d", sg_comm_task_cnt, sg_mqtt_task_cnt, sg_log_task_cnt);
+        sg_log_task_run = false;
+        sg_mqtt_task_run = false;
+        sg_comm_task_run = false;
+        HAL_SleepMs(1000);
+    }
+
     init_dev_log_queue();
+    init_error_log_queue();
     Log_d("Enter smartconfig");
     PUSH_LOG("Enter smartconfig");
 
-    sg_log_task_run = false;
-    if (sg_comm_task_run || sg_mqtt_task_run) {
-        Log_w("Last config not finished, wait for a while!");
-        sg_mqtt_task_run = false;
-        sg_comm_task_run = false;
-        HAL_SleepMs(5000);
-    }
-
-    sg_mqtt_task_run       = false;
-    sg_comm_task_run       = false;
     sg_wifi_config_success = false;
     sg_token_received      = false;
     memset(sg_token_str, 0, sizeof(sg_token_str));
 
-    init_error_log_queue();
+    int ret = _load_device_info(&sg_device_info);
+    if (ret) {
+        Log_e("load device info failed: %d", ret);
+        PUSH_LOG("load device info failed: %d", ret);
+        push_error_log(ERR_DEVICE_INFO, ret);
+        ret = ERR_DEVICE_INFO;
+        goto err_exit;
+    }
 
-    int ret = wifi_sta_init();
+    ret = wifi_sta_init();
     if (ret) {
         Log_e("wifi_sta_init failed: %d", ret);
         PUSH_LOG("wifi_sta_init failed: %d", ret);
         push_error_log(ERR_WIFI_STA_INIT, ret);
+        ret = ERR_WIFI_STA_INIT;
         goto err_exit;
     }
 
@@ -953,6 +1019,16 @@ int start_smartconfig(void)
         Log_e("wifi_start_running failed: %d", ret);
         PUSH_LOG("wifi_start_running failed: %d", ret);
         push_error_log(ERR_WIFI_START, ret);
+        ret = ERR_WIFI_START;
+        goto err_exit;
+    }
+
+    ret = wifi_start_smartconfig();
+    if (ret) {
+        Log_e("start smartconfig failed: %d", ret);
+        PUSH_LOG("start smartconfig failed: %d", ret);
+        push_error_log(ERR_SC_START, ret);
+        ret = ERR_SC_START;
         goto err_exit;
     }
 
@@ -963,6 +1039,7 @@ int start_smartconfig(void)
         Log_e("create udp_server_task failed: %d", ret);
         PUSH_LOG("create udp_server_task failed: %d", ret);
         push_error_log(ERR_OS_TASK, ret);
+        ret = ERR_OS_TASK;
         goto err_exit;
     }
 
@@ -973,6 +1050,7 @@ int start_smartconfig(void)
         Log_e("create smartconfig_mqtt_task failed: %d", ret);
         PUSH_LOG("create smartconfig_mqtt_task failed: %d", ret);
         push_error_log(ERR_OS_TASK, ret);
+        ret = ERR_OS_TASK;
         goto err_exit;
     }
 
@@ -984,7 +1062,7 @@ err_exit:
     sg_mqtt_task_run = false;
     sg_comm_task_run = false;
 
-    return QCLOUD_ERR_FAILURE;
+    return ret;
 }
 
 void stop_smartconfig(void)
@@ -1001,7 +1079,7 @@ void stop_smartconfig(void)
     sg_log_task_run  = false;
 
     wifi_stop_smartconfig();
-    set_wifi_led_state(WIFI_LED_OFF);
+    set_wifi_led_state(LED_OFF);
 }
 
 bool is_wifi_config_successful(void)
@@ -1024,6 +1102,7 @@ static void log_server_task(void *pvParameters)
 {
     int  ret, server_socket = -1;
     char addr_str[128] = {0};
+    sg_log_task_cnt++;
 
     /* stay 6 minutes to handle log */
     uint32_t server_count = 360 / SELECT_WAIT_TIME_SECONDS;
@@ -1146,6 +1225,7 @@ end_of_task:
           esp_get_free_heap_size());
 #endif
 
+    sg_log_task_cnt--;
     vTaskDelete(NULL);
 }
 #endif

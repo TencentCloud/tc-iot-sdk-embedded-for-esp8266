@@ -44,7 +44,7 @@ static char sg_device_name[MAX_SIZE_OF_DEVICE_NAME + 1] = "YOUR_DEV_NAME";
 static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 
 /* region */
-static char sg_region[MAX_SIZE_OF_REGION + 1] = "china";
+static char sg_region[MAX_SIZE_OF_PRODUCT_REGION + 1] = "ap-guangzhou";
 
 #ifdef GATEWAY_ENABLED
 /* sub-device product id  */
@@ -117,8 +117,8 @@ int HAL_GetDevInfo(void *pdevInfo)
                            MAX_SIZE_OF_PRODUCT_ID);  // get product ID
     ret |= device_info_copy(devInfo->device_name, sg_device_name,
                             MAX_SIZE_OF_DEVICE_NAME);  // get dev name
-    ret |= device_info_copy(devInfo->region, sg_region,
-                            MAX_SIZE_OF_REGION);  // get region
+    ret |= device_info_copy(devInfo->product_region, sg_region,
+                            MAX_SIZE_OF_PRODUCT_REGION);  // get region
 
 #ifdef DEV_DYN_REG_ENABLED
     ret |= device_info_copy(devInfo->product_secret, sg_product_secret,

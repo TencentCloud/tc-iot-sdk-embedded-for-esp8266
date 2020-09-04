@@ -17,7 +17,7 @@
 
 #include "lwip/sockets.h"
 
-#define SOFTAP_BOARDING_VERSION "2.0"
+#define WIFI_CONFIG_PROTO_VERSION "2.0"
 
 #define WIFI_ERR_LOG_POST
 #define WIFI_LOG_UPLOAD
@@ -34,14 +34,14 @@
 
 #define COMM_SERVER_TASK_NAME        "comm_server_task"
 #define COMM_SERVER_TASK_STACK_BYTES 4096
-#define COMM_SERVER_TASK_PRIO        1
+#define COMM_SERVER_TASK_PRIO        3
 
 #define SMARTCONFIG_TASK_NAME        "smartconfig_mqtt_task"
-#define SMARTCONFIG_TASK_STACK_BYTES 5120
+#define SMARTCONFIG_TASK_STACK_BYTES 10240
 #define SMARTCONFIG_TASK_PRIO        2
 
 #define SOFTAP_TASK_NAME        "softAP_mqtt_task"
-#define SOFTAP_TASK_STACK_BYTES 5120
+#define SOFTAP_TASK_STACK_BYTES 10240
 #define SOFTAP_TASK_PRIO        2
 
 typedef enum {
@@ -77,6 +77,9 @@ typedef enum {
     ERR_SOCKET_SEND     = 22,
     ERR_TOKEN_SEND      = 23,
     ERR_TOKEN_REPLY     = 24,
+    ERR_TOKEN_RECV      = 25,
+    ERR_REGION_FAULT    = 26,
+    ERR_DEVICE_INFO     = 27,
 } eErrLogType;
 
 typedef enum {
@@ -98,8 +101,8 @@ typedef enum {
 } eErrRecordType;
 
 typedef enum {
-    EVENT_WAIT_TIMEOUT     = 0, /* Nothing happen but just waiting timeout */
-    EVENT_WIFI_CONNECTED   = 1, /* Station has connected to target AP */
+    EVENT_WAIT_TIMEOUT      = 0, /* Nothing happen but just waiting timeout */
+    EVENT_WIFI_CONNECTED    = 1, /* Station has connected to target AP */
     EVENT_WIFI_DISCONNECTED = 2, /* Station has been disconnected from target AP */
     EVENT_SMARTCONFIG_STOP  = 3, /* Smartconfig stop event before connected */
 } eWiFiConfigEvent;

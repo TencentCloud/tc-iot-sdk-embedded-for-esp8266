@@ -22,15 +22,30 @@
 uint32_t g_wifi_led_gpio = GPIO_WIFI_LED;
 uint32_t g_relay_led_gpio = GPIO_RELAY_LED;
 
+#define     GPIO_SET        (1)
+#define     GPIO_CLEAR      (0)
+
+#define     WIFI_LED_ON          GPIO_CLEAR
+#define     WIFI_LED_OFF         GPIO_SET
+
+#define     RELAY_LED_ON          GPIO_SET
+#define     RELAY_LED_OFF         GPIO_CLEAR
+
 
 esp_err_t set_wifi_led_state(uint32_t state)
 {
-    return gpio_set_level(g_wifi_led_gpio, state);
+    if (state == LED_ON)
+        return gpio_set_level(g_wifi_led_gpio, GPIO_CLEAR);
+    else
+        return gpio_set_level(g_wifi_led_gpio, GPIO_SET);
 }
 
 esp_err_t set_relay_led_state(uint32_t state)
 {
-    return gpio_set_level(g_relay_led_gpio, state);
+    if (state == LED_ON)
+        return gpio_set_level(g_relay_led_gpio, GPIO_SET);
+    else
+        return gpio_set_level(g_relay_led_gpio, GPIO_CLEAR);
 }
 
 
@@ -50,8 +65,8 @@ void board_init(void)
     ioconfig.pull_up_en = GPIO_PULLUP_DISABLE;
     gpio_config(&ioconfig);
 
-    set_wifi_led_state(WIFI_LED_OFF);
-    set_relay_led_state(RELAY_LED_OFF);
+    set_wifi_led_state(LED_OFF);
+    set_relay_led_state(LED_OFF);
 }
 
 

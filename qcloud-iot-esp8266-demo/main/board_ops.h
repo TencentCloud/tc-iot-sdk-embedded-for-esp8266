@@ -25,15 +25,8 @@
 
 #define     GPIO_RELAY_LED  (15)
 
-
-#define     GPIO_SET        (1)
-#define     GPIO_CLEAR      (0)
-
-#define     WIFI_LED_ON          GPIO_CLEAR
-#define     WIFI_LED_OFF         GPIO_SET
-
-#define     RELAY_LED_ON          GPIO_SET
-#define     RELAY_LED_OFF         GPIO_CLEAR
+#define     LED_ON        (1)
+#define     LED_OFF       (0)
 
 void board_init(void);
 

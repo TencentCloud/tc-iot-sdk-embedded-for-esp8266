@@ -33,8 +33,8 @@
 
 /* FreeRTOS event group to signal when we are connected & ready to make a request */
 static EventGroupHandle_t sg_wifi_event_group;
-static const int          CONNECTED_BIT          = BIT0;
-static const int          ESPTOUCH_DONE_BIT      = BIT1;
+static const int          CONNECTED_BIT        = BIT0;
+static const int          ESPTOUCH_DONE_BIT    = BIT1;
 static const int          STA_DISCONNECTED_BIT = BIT2;
 
 static bool sg_wifi_init_done     = false;
@@ -423,7 +423,7 @@ int wifi_wait_event(unsigned int timeout_ms)
 {
     EventBits_t uxBits =
         xEventGroupWaitBits(sg_wifi_event_group, CONNECTED_BIT | ESPTOUCH_DONE_BIT | STA_DISCONNECTED_BIT, true, false,
-                                             timeout_ms / portTICK_RATE_MS);
+                            timeout_ms / portTICK_RATE_MS);
     if (uxBits & CONNECTED_BIT) {
         return EVENT_WIFI_CONNECTED;
     }

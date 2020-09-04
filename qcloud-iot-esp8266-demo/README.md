@@ -119,7 +119,16 @@ static char sg_device_secret[MAX_SIZE_OF_DEVICE_SECRET + 1] = "YOUR_IOT_PSK";
 ### 6. WiFi配网说明
 工程里面包含了WiFi配网及设备绑定的代码，关于softAP配网协议及接口使用请看 [WiFi设备softAP配网](https://github.com/tencentyun/qcloud-iot-esp-wifi/blob/master/docs/WiFi%E8%AE%BE%E5%A4%87softAP%E9%85%8D%E7%BD%91v2.0.md)，关于SmartConfig配网协议及接口使用请看 [WiFi设备SmartConfig配网](https://github.com/tencentyun/qcloud-iot-esp-wifi/blob/master/docs/WiFi%E8%AE%BE%E5%A4%87SmartConfig%E9%85%8D%E7%BD%91.md)。对于支持乐鑫ESP-TOUCH协议的设备，建议优先选择SmartConfig配网。
 
->注意：配网参考代码的函数get_reg_dev_info()里面包含了动态注册部分，简单演示了进入动态注册的条件，用户可根据自己情况调整。
+>注意：配网参考代码的函数_get_reg_dev_info()里面包含了动态注册部分，简单演示了进入动态注册的条件，用户可根据自己情况调整。
+```
+// 简单演示进入动态注册的条件，用户可根据自己情况调整
+// 如果 dev_info->device_secret == "YOUR_IOT_PSK", 表示设备没有有效的PSK
+// 并且 dev_info->product_secret != "YOUR_PRODUCT_SECRET", 表示具备产品密钥，可以进行动态注册
+if (!strncmp(dev_info->device_secret, "YOUR_IOT_PSK", MAX_SIZE_OF_DEVICE_SECRET) &&
+        strncmp(dev_info->product_secret, "YOUR_PRODUCT_SECRET", MAX_SIZE_OF_PRODUCT_SECRET)) {
+
+        int ret = IOT_DynReg_Device(dev_info);
+```
 
 ### 7. ESP8266固件OTA
 工程里面包含了对ESP8266进行完整固件OTA的参考代码，编译时首先需要打开
