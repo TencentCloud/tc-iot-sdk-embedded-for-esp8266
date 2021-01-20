@@ -15,6 +15,15 @@
 #ifndef __QCLOUD_WIFI_CONFIG_H__
 #define __QCLOUD_WIFI_CONFIG_H__
 
+#define WIFI_CONFIG_WAIT_APP_BIND_STATE 1
+
+typedef enum wifi_config_last_app_bind_state {
+    LAST_APP_BIND_STATE_SUCCESS, // last time app bind state is binded
+    LAST_APP_BIND_STATE_FAILED,  // last time app bind state is not binded
+    LAST_APP_BIND_STATE_NOBIND,  // last time app bind state is no app bind device
+    LAST_APP_BIND_STATE_ERROR    // last time app bind state is func error
+} WIFI_CONFIG_LAST_APP_BIND_STATE;
+
 typedef enum {
     WIFI_CONFIG_SUCCESS  = 0, /* WiFi config and MQTT connect success */
     WIFI_CONFIG_GOING_ON = 1, /* WiFi config and MQTT connect is going on */
@@ -70,4 +79,9 @@ int query_wifi_config_state(void);
  */
 int start_log_softAP(void);
 
+/**
+ * @brief device query app last bind result
+ * @return WIFI_CONFIG_LAST_APP_BIND_STATE
+ */
+WIFI_CONFIG_LAST_APP_BIND_STATE mqtt_query_app_bind_result(void);
 #endif  //__QCLOUD_WIFI_CONFIG_H__

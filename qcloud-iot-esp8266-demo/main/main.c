@@ -28,11 +28,12 @@
 #include "qcloud_iot_export.h"
 #include "qcloud_iot_demo.h"
 #include "qcloud_wifi_config.h"
+#include "esp_qcloud_storage.h"
 #include "board_ops.h"
 
 
 /* normal WiFi STA mode init and connection ops */
-#ifndef CONFIG_WIFI_CONFIG_ENABLED
+#if (WIFI_CONFIG_WAIT_APP_BIND_STATE || (!defined(CONFIG_WIFI_CONFIG_ENABLED)))
 
 /* WiFi router SSID  */
 #define TEST_WIFI_SSID                 CONFIG_DEMO_WIFI_SSID
@@ -195,30 +196,56 @@ void qcloud_demo_task(void* parm)
     wifi_config_t wifi_config = {0};
     get_stored_wifi_config(&wifi_config);
     Log_i("stored config: ssid: %s psw: %s", wifi_config.sta.ssid, wifi_config.sta.password);    
-    
+#if WIFI_CONFIG_WAIT_APP_BIND_STATE
+    // check reboot before wifi config is wait_app_bind_device
+    bool wait_app_bind_device_state = true;
+    int app_bind_state = -1;
+    if (ESP_OK == esp_qcloud_storage_get("wait_bind",
+                                         &wait_app_bind_device_state,
+                                         sizeof(wait_app_bind_device_state))) {
+        if (true == wait_app_bind_device_state) {
+            /* init wifi STA and start connection with expected BSS */
+            esp_wifi_initialise();
+            esp_wifi_set_config(ESP_IF_WIFI_STA, (wifi_config_t *)&wifi_config);
+            esp_wifi_set_storage(WIFI_STORAGE_FLASH);
+            /* 10 * 1000ms */
+            wifi_connected = wait_for_wifi_ready(CONNECTED_BIT, 10, 1000);
+            if (true == wifi_connected) {
+                app_bind_state = mqtt_query_app_bind_result();
+                Log_e("query_bind_result:%d", app_bind_state);
+            }
+        }
+    }
+#endif
 #if CONFIG_WIFI_CONFIG_ENABLED
-    /* to use WiFi config and device binding with Wechat mini program */
-    int wifi_config_state;
-    //int ret = start_softAP("ESP8266-SAP", "12345678", 0);
-    int ret = start_smartconfig();
-    if (ret) {
-        Log_e("start wifi config failed: %d", ret);
-    } else {
-        /* max waiting: 150 * 2000ms */
-        int wait_cnt = 150;
-        do {
-            Log_d("waiting for wifi config result...");
-            HAL_SleepMs(2000);            
-            wifi_config_state = query_wifi_config_state();
-        } while (wifi_config_state == WIFI_CONFIG_GOING_ON && wait_cnt--);
-    }
+#if WIFI_CONFIG_WAIT_APP_BIND_STATE
+    if (app_bind_state != 0) {
+#endif
+        /* to use WiFi config and device binding with Wechat mini program */
+        int wifi_config_state;
+        //int ret = start_softAP("ESP8266-SAP", "12345678", 0);
+        int ret = start_smartconfig();
+        if (ret) {
+            Log_e("start wifi config failed: %d", ret);
+        } else {
+            /* max waiting: 150 * 2000ms */
+            int wait_cnt = 150;
+            do {
+                Log_d("waiting for wifi config result...");
+                HAL_SleepMs(2000);            
+                wifi_config_state = query_wifi_config_state();
+            } while (wifi_config_state == WIFI_CONFIG_GOING_ON && wait_cnt--);
+        }
 
-    wifi_connected = is_wifi_config_successful();
-    if (!wifi_connected) {
-        Log_e("wifi config failed!");
-        // setup a softAP to upload log to mini program
-        start_log_softAP();
+        wifi_connected = is_wifi_config_successful();
+        if (!wifi_connected) {
+            Log_e("wifi config failed!");
+            // setup a softAP to upload log to mini program
+            start_log_softAP();
+        }
+#if WIFI_CONFIG_WAIT_APP_BIND_STATE
     }
+#endif // WIFI_CONFIG_WAIT_APP_BIND_STATE
 #else
     /* init wifi STA and start connection with expected BSS */
     esp_wifi_initialise();

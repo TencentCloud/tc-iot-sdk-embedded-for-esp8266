@@ -33,6 +33,7 @@
 #include "qcloud_wifi_config.h"
 #include "wifi_config_internal.h"
 #include "board_ops.h"
+#include "esp_qcloud_storage.h"
 
 /* task control flags and counters */
 static bool sg_mqtt_task_run = false;
@@ -47,6 +48,8 @@ static int sg_log_task_cnt  = 0;
 static bool sg_wifi_config_success = false;
 static bool sg_token_received      = false;
 
+#define WAIT_BIND   "wait_bind"
+static bool sg_wait_app_bind_device_state = false;
 //============================ MQTT communication functions begin ===========================//
 
 #define MAX_TOKEN_LENGTH 32
@@ -155,20 +158,35 @@ static void _on_message_callback(void *pClient, MQTTMessage *message, void *user
         Log_e("Parsing JSON Error");
         push_error_log(ERR_TOKEN_REPLY, ERR_APP_CMD_JSON_FORMAT);
     } else {
+        cJSON *method_json = cJSON_GetObjectItem(root, "method");
         cJSON *code_json = cJSON_GetObjectItem(root, "code");
-        if (code_json) {
-            TokenHandleData *app_data = (TokenHandleData *)userData;
-            app_data->reply_code      = code_json->valueint;
-            Log_d("token reply code = %d", code_json->valueint);
+        if (NULL != method_json) {
+            if (0 == strcmp("bind_device", method_json->valuestring)) {
+                Log_d("method [bind_device] msg down");
+                sg_wait_app_bind_device_state = false;
+            } else if (0 == strcmp("bind_device_query_reply", method_json->valuestring)) {                
+                if (NULL != code_json) {
+                    Log_d("method [bind_device_query_reply] bind code = %d", code_json->valueint);
+                    TokenHandleData *app_data = (TokenHandleData *)userData;
+                    app_data->reply_code      = code_json->valueint;
+                }
+            } else if (0 == strcmp("app_bind_token_reply", method_json->valuestring)) {                
+                if (code_json) {
+                    Log_d("method [app_bind_token_reply] bind code = %d", code_json->valueint);
+                    TokenHandleData *app_data = (TokenHandleData *)userData;
+                    app_data->reply_code      = code_json->valueint;
+                    Log_d("token reply code = %d", code_json->valueint);
 
-            if (app_data->reply_code) {
-                Log_e("token reply error: %d", code_json->valueint);
-                PUSH_LOG("token reply error: %d", code_json->valueint);
-                push_error_log(ERR_TOKEN_REPLY, app_data->reply_code);
+                    if (app_data->reply_code) {
+                        Log_e("token reply error: %d", code_json->valueint);
+                        PUSH_LOG("token reply error: %d", code_json->valueint);
+                        push_error_log(ERR_TOKEN_REPLY, app_data->reply_code);
+                    }
+                } else {
+                    Log_e("Parsing reply code Error");
+                    push_error_log(ERR_TOKEN_REPLY, ERR_APP_CMD_JSON_FORMAT);
+                }
             }
-        } else {
-            Log_e("Parsing reply code Error");
-            push_error_log(ERR_TOKEN_REPLY, ERR_APP_CMD_JSON_FORMAT);
         }
 
         cJSON_Delete(root);
@@ -386,6 +404,180 @@ static void *_setup_mqtt_connect(DeviceInfo *dev_info, TokenHandleData *app_data
     return NULL;
 }
 
+#if WIFI_CONFIG_WAIT_APP_BIND_STATE
+// wait cloud platform publish bind_device method msg
+static int _wait_platform_bind_device_msg(void *mqtt_client)
+{
+    int retry_cnt = 120;
+    int ret = QCLOUD_RET_SUCCESS;
+
+    if (NULL == mqtt_client) {
+        Log_e("wait method [bind_deive] failed, mqtt_client is NULL");
+        return QCLOUD_ERR_FAILURE;
+    }
+    
+    // wait 2mins
+    retry_cnt = 120;
+    ret = QCLOUD_ERR_MQTT_REQUEST_TIMEOUT;
+    do {
+        // bind_device method recved
+        if (false == sg_wait_app_bind_device_state) {
+            if (ESP_OK != esp_qcloud_storage_erase(WAIT_BIND)) {
+               Log_e("erase wait_app_bind_device false failed");
+            }
+            ret = QCLOUD_RET_SUCCESS;
+            break;
+        }
+        IOT_MQTT_Yield(mqtt_client, 1000);
+        Log_d("wait for bind device method :%d, task_run:%d, try:%d, ret:%d", sg_wait_app_bind_device_state,
+              sg_mqtt_task_run, retry_cnt, ret);
+        
+        
+    } while (ret && retry_cnt-- && sg_mqtt_task_run);
+
+    if (retry_cnt == 0) {
+        Log_e("wait method [bind_deive] timeout");
+    }
+
+    return ret;
+}
+
+// query app bind device result; device publish bind_device_query msg
+static int _query_app_bind_device_result(void *client, DeviceInfo *dev_info, TokenHandleData *app_data)
+{    
+    int ret = QCLOUD_RET_SUCCESS;
+    int wait_cnt = 5;
+    char topic_name[128] = {0};
+
+    // publish bind_device_query msg
+    int size = HAL_Snprintf(topic_name, sizeof(topic_name), "$thing/up/service/%s/%s", dev_info->product_id,
+                            dev_info->device_name);
+    if (size < 0 || size > sizeof(topic_name) - 1) {
+        Log_e("topic content length not enough! content size:%d  buf size:%d", size, (int)sizeof(topic_name));
+        return QCLOUD_ERR_FAILURE;
+    }
+
+    PublishParams pub_params = DEFAULT_PUB_PARAMS;
+    pub_params.qos           = QOS0;
+
+    char topic_content[256] = {0};
+    size                    = HAL_Snprintf(topic_content, sizeof(topic_content),
+                        "{\"method\":\"bind_device_query\",\"clientToken\":\"%s-%u\",\"timestamp\": %u}",
+                        dev_info->device_name, HAL_GetTimeMs(), HAL_GetTimeMs());
+    if (size < 0 || size > sizeof(topic_content) - 1) {
+        Log_e("payload content length not enough! content size:%d  buf size:%d", size, (int)sizeof(topic_content));
+        return QCLOUD_ERR_MALLOC;
+    }
+
+    pub_params.payload     = topic_content;
+    pub_params.payload_len = strlen(topic_content);
+
+publish_query_msg:
+    app_data->reply_code = -1;
+    app_data->send_ready = false;
+    
+    ret = IOT_MQTT_Publish(client, topic_name, &pub_params);
+    
+    if (ret < 0 && (wait_cnt-- > 0)) {
+        Log_e("Client publish query bind device failed: %d", ret);
+        if (is_wifi_sta_connected() && IOT_MQTT_IsConnected(client)) {
+            IOT_MQTT_Yield(client, 500);
+        } else {
+            Log_e("Wifi or MQTT lost connection! Wait and retry!");
+            IOT_MQTT_Yield(client, 2000);
+        }
+        goto publish_query_msg;
+    }
+    
+    if (ret < 0) {
+        Log_e("pub query bind device failed: %d", ret);
+        return ret;
+    }
+
+    wait_cnt = 5;
+    do {
+        IOT_MQTT_Yield(client, 1000);
+        Log_i("wait for query bind device result %d, %d,%d...", app_data->reply_code, app_data->send_ready);
+    } while ((-1 == app_data->reply_code) && (wait_cnt-- > 0));
+
+    if (wait_cnt != 0) {
+        if (ESP_OK != esp_qcloud_storage_erase(WAIT_BIND)) {
+            Log_e("erase wait_wechat_applet_bind_device false failed");
+        }
+    }
+    
+    if (0 == app_data->reply_code) {
+        Log_e("query bind device binded");
+        ret = LAST_APP_BIND_STATE_SUCCESS;
+        set_wifi_led_state(LED_ON);
+    } else if (404 == app_data->reply_code) {
+        Log_e("query bind device not bind");
+        ret = LAST_APP_BIND_STATE_FAILED;
+    }
+    
+    return ret;
+}
+
+// query app bind device result
+WIFI_CONFIG_LAST_APP_BIND_STATE mqtt_query_app_bind_result(void)
+{
+    //get the device info or do device dynamic register
+    DeviceInfo  dev_info;
+    bool wait_app_bind_device_state = true;
+    int ret = QCLOUD_RET_SUCCESS;
+    void *client = NULL;
+
+    if (ESP_OK != esp_qcloud_storage_get(WAIT_BIND,
+                                         &wait_app_bind_device_state,
+                                         sizeof(wait_app_bind_device_state))) {
+        Log_i("get storage failed, no wait_bind key");
+        return LAST_APP_BIND_STATE_NOBIND;
+    } else {
+        sg_wait_app_bind_device_state = wait_app_bind_device_state;
+        if (false == sg_wait_app_bind_device_state) {
+            Log_i("get storage success not wait app bind state");
+            return LAST_APP_BIND_STATE_NOBIND;
+        }
+    }
+
+    ret = _load_device_info(&dev_info);
+    if (ret) {
+        Log_e("Get device info failed: %d", ret);
+        return LAST_APP_BIND_STATE_ERROR;
+    }
+    //token handle data
+    TokenHandleData app_data;
+    app_data.sub_ready = false;
+    app_data.send_ready = false;
+    app_data.reply_code = -1;
+
+    //mqtt connection
+    client = _setup_mqtt_connect(&dev_info, &app_data);
+    if (client == NULL) {
+        ret = IOT_MQTT_GetErrCode();
+        Log_e("Cloud Device Construct Failed: %d", ret);
+        push_error_log(ERR_MQTT_CONNECT, ret);
+        return LAST_APP_BIND_STATE_ERROR;
+    }
+
+    //subscribe token reply topic
+    ret = _subscribe_topic_wait_result(client, &dev_info, &app_data);
+    if (ret < 0) {
+        Log_w("Client Subscribe Topic Failed: %d", ret);
+        ret = LAST_APP_BIND_STATE_ERROR;
+    } else if ((ret = _query_app_bind_device_result(client, &dev_info, &app_data)) < 0) {
+        Log_w("query app bind failed: %d", ret);
+        ret = LAST_APP_BIND_STATE_FAILED;
+    }
+
+    IOT_MQTT_Destroy(&client);
+    if (0 == ret) {
+        HAL_SleepMs(5000);
+    }
+        
+    return ret;
+}
+#endif
 int mqtt_send_token(void)
 {
     // get the device info or do device dynamic register
@@ -419,6 +611,15 @@ int mqtt_send_token(void)
         Log_w("Subscribe topic failed: %d", ret);
         PUSH_LOG("Subscribe topic failed: %d", ret);
     }
+#if WIFI_CONFIG_WAIT_APP_BIND_STATE
+    sg_wait_app_bind_device_state = true;
+    /* store wait wechat applet bind success flag to flash */
+    if (ESP_OK != esp_qcloud_storage_set(WAIT_BIND,
+                                         &sg_wait_app_bind_device_state,
+                                         sizeof(sg_wait_app_bind_device_state))) {
+        Log_e("set wait_app_bind_device true failed");
+    }
+#endif
 
     // publish token msg and wait for reply
     int retry_cnt = 2;
@@ -439,7 +640,14 @@ int mqtt_send_token(void)
                 break;
         }
     }
-
+#if WIFI_CONFIG_WAIT_APP_BIND_STATE
+    if ((QCLOUD_RET_SUCCESS == ret) && (0 == app_data.reply_code)) {
+        ret = _wait_platform_bind_device_msg(client);
+    } else if ((QCLOUD_RET_SUCCESS == ret) && (0 != app_data.reply_code)) {
+        Log_e("app bind device code:%d", app_data.reply_code);
+        ret = QCLOUD_ERR_FAILURE;
+    }
+#endif
     IOT_MQTT_Destroy(&client);
 
     // sleep 5 seconds to avoid frequent MQTT connection
