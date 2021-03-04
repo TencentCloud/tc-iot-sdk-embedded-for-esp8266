@@ -15,7 +15,7 @@
 #ifndef __QCLOUD_WIFI_CONFIG_H__
 #define __QCLOUD_WIFI_CONFIG_H__
 
-#define WIFI_CONFIG_WAIT_APP_BIND_STATE 1
+#define WIFI_CONFIG_WAIT_APP_BIND_STATE 0
 
 typedef enum wifi_config_last_app_bind_state {
     LAST_APP_BIND_STATE_SUCCESS, // last time app bind state is binded
