@@ -59,11 +59,6 @@ esp_err_t esp_qcloud_storage_erase(const char *key)
     esp_err_t ret    = ESP_OK;
     nvs_handle handle = 0;
 
-    if (ESP_OK != esp_qcloud_storage_init()) {
-        Log_e("storage erase failed, init failed");
-        return ret;
-    }
-
     /**< Open non-volatile storage with a given namespace from the default NVS partition */
     ret = nvs_open(CONFIG_QCLOUD_NVS_NAMESPACE, NVS_READWRITE, &handle);
     if (ret != ESP_OK) {
@@ -99,11 +94,6 @@ esp_err_t esp_qcloud_storage_set(const char *key, const void *value, size_t leng
     esp_err_t ret     = ESP_OK;
     nvs_handle handle = 0;
 
-    if (ESP_OK != esp_qcloud_storage_init()) {
-        Log_e("storage set failed, init storage failed");
-        return ret;
-    }
-
     /**< Open non-volatile storage with a given namespace from the default NVS partition */
     ret = nvs_open(CONFIG_QCLOUD_NVS_NAMESPACE, NVS_READWRITE, &handle);
     if (ret != ESP_OK) {
@@ -132,11 +122,6 @@ esp_err_t esp_qcloud_storage_get(const char *key, void *value, size_t length)
 {
     esp_err_t ret     = ESP_OK;
     nvs_handle handle = 0;
-
-    if (ESP_OK != esp_qcloud_storage_init()) {
-        Log_e("storage get failed, init storage failed");
-        return ret;
-    }
 
     /**< Open non-volatile storage with a given namespace from the default NVS partition */
     ret = nvs_open(CONFIG_QCLOUD_NVS_NAMESPACE, NVS_READWRITE, &handle);

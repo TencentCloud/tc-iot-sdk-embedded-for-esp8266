@@ -24,6 +24,9 @@ typedef enum wifi_config_last_app_bind_state {
     LAST_APP_BIND_STATE_ERROR    // last time app bind state is func error
 } WIFI_CONFIG_LAST_APP_BIND_STATE;
 
+#define WAIT_APP_BIND_TRUE     0x55
+#define WAIT_APP_BIND_FALSE    0xFF
+
 typedef enum {
     WIFI_CONFIG_SUCCESS  = 0, /* WiFi config and MQTT connect success */
     WIFI_CONFIG_GOING_ON = 1, /* WiFi config and MQTT connect is going on */

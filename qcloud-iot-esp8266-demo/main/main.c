@@ -198,12 +198,12 @@ void qcloud_demo_task(void* parm)
     Log_i("stored config: ssid: %s psw: %s", wifi_config.sta.ssid, wifi_config.sta.password);    
 #if WIFI_CONFIG_WAIT_APP_BIND_STATE
     // check reboot before wifi config is wait_app_bind_device
-    bool wait_app_bind_device_state = true;
+    char wait_app_bind_device_state = 0x00;
     int app_bind_state = -1;
     if (ESP_OK == esp_qcloud_storage_get("wait_bind",
                                          &wait_app_bind_device_state,
                                          sizeof(wait_app_bind_device_state))) {
-        if (true == wait_app_bind_device_state) {
+        if (WAIT_APP_BIND_TRUE == wait_app_bind_device_state) {
             /* init wifi STA and start connection with expected BSS */
             esp_wifi_initialise();
             esp_wifi_set_config(ESP_IF_WIFI_STA, (wifi_config_t *)&wifi_config);

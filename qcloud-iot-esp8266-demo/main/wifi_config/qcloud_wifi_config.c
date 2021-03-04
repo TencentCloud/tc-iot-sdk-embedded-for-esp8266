@@ -49,7 +49,7 @@ static bool sg_wifi_config_success = false;
 static bool sg_token_received      = false;
 
 #define WAIT_BIND   "wait_bind"
-static bool sg_wait_app_bind_device_state = false;
+static char sg_wait_app_bind_device_state = 0x00;
 //============================ MQTT communication functions begin ===========================//
 
 #define MAX_TOKEN_LENGTH 32
@@ -163,7 +163,7 @@ static void _on_message_callback(void *pClient, MQTTMessage *message, void *user
         if (NULL != method_json) {
             if (0 == strcmp("bind_device", method_json->valuestring)) {
                 Log_d("method [bind_device] msg down");
-                sg_wait_app_bind_device_state = false;
+                sg_wait_app_bind_device_state = WAIT_APP_BIND_FALSE;
             } else if (0 == strcmp("bind_device_query_reply", method_json->valuestring)) {                
                 if (NULL != code_json) {
                     Log_d("method [bind_device_query_reply] bind code = %d", code_json->valueint);
@@ -421,7 +421,7 @@ static int _wait_platform_bind_device_msg(void *mqtt_client)
     ret = QCLOUD_ERR_MQTT_REQUEST_TIMEOUT;
     do {
         // bind_device method recved
-        if (false == sg_wait_app_bind_device_state) {
+        if (WAIT_APP_BIND_FALSE == sg_wait_app_bind_device_state) {
             if (ESP_OK != esp_qcloud_storage_erase(WAIT_BIND)) {
                Log_e("erase wait_app_bind_device false failed");
             }
@@ -429,10 +429,9 @@ static int _wait_platform_bind_device_msg(void *mqtt_client)
             break;
         }
         IOT_MQTT_Yield(mqtt_client, 1000);
-        Log_d("wait for bind device method :%d, task_run:%d, try:%d, ret:%d", sg_wait_app_bind_device_state,
+        Log_d("wait for bind device method state:%d, task_run:%d, try:%d, ret:%d", sg_wait_app_bind_device_state,
               sg_mqtt_task_run, retry_cnt, ret);
-        
-        
+
     } while (ret && retry_cnt-- && sg_mqtt_task_run);
 
     if (retry_cnt == 0) {
@@ -510,8 +509,8 @@ publish_query_msg:
         Log_e("query bind device binded");
         ret = LAST_APP_BIND_STATE_SUCCESS;
         set_wifi_led_state(LED_ON);
-    } else if (404 == app_data->reply_code) {
-        Log_e("query bind device not bind");
+    } else {
+        Log_e("query bind device not bind code:%d", app_data->reply_code);
         ret = LAST_APP_BIND_STATE_FAILED;
     }
     
@@ -523,7 +522,7 @@ WIFI_CONFIG_LAST_APP_BIND_STATE mqtt_query_app_bind_result(void)
 {
     //get the device info or do device dynamic register
     DeviceInfo  dev_info;
-    bool wait_app_bind_device_state = true;
+    char wait_app_bind_device_state = 0x00;
     int ret = QCLOUD_RET_SUCCESS;
     void *client = NULL;
 
@@ -534,7 +533,7 @@ WIFI_CONFIG_LAST_APP_BIND_STATE mqtt_query_app_bind_result(void)
         return LAST_APP_BIND_STATE_NOBIND;
     } else {
         sg_wait_app_bind_device_state = wait_app_bind_device_state;
-        if (false == sg_wait_app_bind_device_state) {
+        if (WAIT_APP_BIND_FALSE == sg_wait_app_bind_device_state) {
             Log_i("get storage success not wait app bind state");
             return LAST_APP_BIND_STATE_NOBIND;
         }
@@ -612,7 +611,7 @@ int mqtt_send_token(void)
         PUSH_LOG("Subscribe topic failed: %d", ret);
     }
 #if WIFI_CONFIG_WAIT_APP_BIND_STATE
-    sg_wait_app_bind_device_state = true;
+    sg_wait_app_bind_device_state = WAIT_APP_BIND_TRUE;
     /* store wait wechat applet bind success flag to flash */
     if (ESP_OK != esp_qcloud_storage_set(WAIT_BIND,
                                          &sg_wait_app_bind_device_state,
