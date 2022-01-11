@@ -510,8 +510,8 @@ int enable_ota_task(DeviceInfo *dev_info, void *mqtt_client, char *version)
         memset(&sg_ota_ctx, 0, sizeof(sg_ota_ctx));
         return QCLOUD_ERR_FAILURE;
     }
-    memset(sg_ota_ctx.local_version, 0, MAX_SIZE_OF_FW_VERSION + 4);
-    strncpy(sg_ota_ctx.local_version, version, strlen(version));
+    strncpy(sg_ota_ctx.local_version, version, MAX_SIZE_OF_FW_VERSION);
+    sg_ota_ctx.local_version[MAX_SIZE_OF_FW_VERSION - 1] = '\0';
 #else
     Log_w("OTA on ESP is not enabled!");
 #endif
