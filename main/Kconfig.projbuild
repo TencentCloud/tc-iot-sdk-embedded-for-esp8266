@@ -1,0 +1,72 @@
+menu "QCloud IoT demo Configuration"
+
+choice DEMO_EXAMPLE_SELECT
+    bool "Select explorer demo example"
+    default SMART_LIGHT_ENABLED
+    help
+        Select explorer demo example
+            
+    config SMART_LIGHT_ENABLED
+        bool "Smart light example"
+    config GATEWAY_ENABLED
+        bool "Gateway example"
+    config RAW_DATA_ENABLED
+        bool "Raw data example"
+	config MQTT_ENABLED
+        bool "Mqtt example"	
+    config DYNREG_ENABLED
+    	bool "Dynreg device example"
+    config DATA_TEMPLATE_ENABLED
+        bool "data template example"
+    config WIFI_CONFIG_ENABLED
+        bool "wifi config example"
+endchoice	
+
+config DEMO_EXAMPLE_SELECT
+    int
+    default 0 if SMART_LIGHT_ENABLED
+    default 1 if GATEWAY_ENABLED
+    default 2 if RAW_DATA_ENABLED
+    default 3 if MQTT_ENABLED
+	default 4 if DYNREG_ENABLED
+    default 5 if DATA_TEMPLATE_ENABLED
+    default 6 if WIFI_CONFIG_ENABLED
+
+
+choice WIFI_CONFIG_SELECT
+    depends on WIFI_CONFIG_ENABLED
+    bool "WiFi Config Select"
+    default KNOWN_SSID_PSW_ENABLED
+    help
+        Select wifi config style
+            
+    config SOFTAP_CONFIG_ENABLED
+        bool "SoftAP"
+    config SMART_CONFIG_ENABLED
+        bool "Smartconfig"
+    config AIRKISS_CONFIG_ENABLED
+        bool "Airkiss"
+endchoice
+
+config DEMO_WIFI_SSID
+    depends on (!WIFI_CONFIG_ENABLED)
+    string "WiFi SSID"
+    default "L-004"
+    help
+        wifi ssid
+
+config DEMO_WIFI_PASSWORD
+    depends on (!WIFI_CONFIG_ENABLED)
+    string "WiFi PASSWORD"
+    default "iot2021$"
+    help
+        wifi password       
+
+config QCLOUD_OTA_ESP_ENABLED
+    depends on PARTITION_TABLE_TWO_OTA
+	bool "Enable OTA support on ESP"
+    default y
+    help
+        To enable OTA support on ESP or not. Required OTA partition table
+
+endmenu
