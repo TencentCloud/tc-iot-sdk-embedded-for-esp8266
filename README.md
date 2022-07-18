@@ -193,7 +193,7 @@ git clone https://github.com/tencentyun/qcloud-iot-explorer-sdk-embedded-c.git
 
 ## AT 固件
 
-最新AT固件请移步乐鑫官网[下载](https://docs.espressif.com/projects/esp-at/zh_CN/latest/esp32/Customized_AT_Commands_and_Firmware/Tencent_Cloud_IoT_AT/index.html)。
+最新AT固件请移步乐鑫官网[下载](https://docs.espressif.com/projects/esp-at/zh_CN/release-v2.2.0.0_esp8266/Customized_AT_Commands_and_Firmware/Tencent_Cloud_IoT_AT/index.html)。
 
 ## 配套视频教程
 
