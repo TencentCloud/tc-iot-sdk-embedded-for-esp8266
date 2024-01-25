@@ -698,7 +698,7 @@ int qcloud_iot_explorer_demo(eDemoType eType)
             HAL_SleepMs(1000);
             continue;
         }
-        if (rc != QCLOUD_RET_SUCCESS) {
+        if (rc != QCLOUD_RET_SUCCESS && rc != QCLOUD_RET_MQTT_RECONNECTED) {
             if (rc == QCLOUD_ERR_MQTT_RECONNECT_TIMEOUT) {
                 Log_e(
                     "exit. mqtt reconnect timeout! Please check the network connection, or try to increase "
