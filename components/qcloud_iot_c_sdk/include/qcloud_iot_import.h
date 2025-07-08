@@ -1,7 +1,7 @@
 /*
  * Tencent is pleased to support the open source community by making IoT Hub
  available.
- * Copyright (C) 2018-2020 THL A29 Limited, a Tencent company. All rights
+ * Copyright (C) 2018-2020 Tencent. All rights
  reserved.
 
  * Licensed under the MIT License (the "License"); you may not use this file
