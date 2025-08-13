@@ -468,7 +468,7 @@ int qcloud_iot_explorer_demo(eDemoType eType)
         if (rc == QCLOUD_ERR_MQTT_ATTEMPTING_RECONNECT) {
             HAL_SleepMs(1000);
             continue;
-        } else if (rc != QCLOUD_RET_SUCCESS) {
+        } else if (rc != QCLOUD_RET_SUCCESS && rc != QCLOUD_RET_MQTT_RECONNECTED) {
             Log_e("Exit loop caused of errCode: %d", rc);
         }
 
